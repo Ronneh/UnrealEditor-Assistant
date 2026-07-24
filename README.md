@@ -1,8 +1,8 @@
 # Unreal Editor 2 Assistant
 
 A Java desktop application that brings practical Unreal Editor 2 mapping and
-image utilities into one workspace. It is designed for Unreal Tournament (1999)
-maps and requires no installation.
+image utilities into one workspace.
+It is designed for Unreal Tournament 1999 maps.
 
 ## Tools
 
