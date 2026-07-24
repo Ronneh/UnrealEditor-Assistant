@@ -1,29 +1,40 @@
 # Unreal Editor 2 Assistant
 
-Single-window desktop workspace for Unreal Editor 2 utilities. Its first included
-tool analyzes and optimizes Unreal Tournament 99 T3D brush vertices.
+A Java desktop application that brings practical Unreal Editor 2 mapping and
+image utilities into one workspace. It is designed for Unreal Tournament (1999)
+maps and requires no installation.
 
-## Included tools
+## Tools
 
-- **Brush Optimizer** — grid-based correction, curved-brush alignment,
-  planarity warnings, optimization log and clipboard output
-- **Double** — previews and applies PlayerStart, FlagBase and Mover team
-  property changes required after doubling a map
-- **Image Resizer** — square PNG export at Unreal-friendly sizes with
-  brightness, contrast, saturation, hue and sharpness controls
-- **Screenshot Maker** — interactive crops from four level screenshots,
-  rearrangeable 2×2 composition and draggable labels using installed fonts
+- **Brush Optimizer** — paste T3D map data to move brush vertices onto the grid,
+  align curved brushes, detect planarity issues, review every change, and copy
+  the optimized result.
+- **Double** — analyze pasted T3D map data, preview the required team-property
+  changes for PlayerStarts, FlagBases, and Movers, then copy the updated map
+  data.
+- **Image Resizer** — open, paste, or drag in an image; crop it to a square;
+  adjust brightness, contrast, saturation, hue, and sharpness; then export an
+  Unreal-friendly PNG or copy it to the clipboard.
+- **Screenshot Maker** — load or paste four level screenshots, choose each
+  square crop, arrange the 2×2 composition, add styled labels using installed
+  fonts, and export the finished PNG at up to 4096×4096.
 
-The launcher and every tool use one dark-themed application window.
+## Requirements
+
+- JDK 17 or newer
+- Apache Maven
 
 ## Build and run
 
-Requires JDK 17 or newer.
+Open PowerShell in the project directory and run:
 
 ```powershell
 mvn package
 java -cp target/classes UnrealEditor2Assistant
 ```
+
+The first command builds the project. The second starts the application. Future
+builds use the same commands.
 
 ## Author
 
