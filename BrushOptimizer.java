@@ -50,7 +50,7 @@ public final class BrushOptimizer {
     private final JTextArea outputArea = createCodeArea();
     private final JComboBox<Integer> gridStepBox = new JComboBox<>(new Integer[] { 2, 4, 8, 16, 32, 64 });
     private final JComboBox<Integer> maxMoveBox = new JComboBox<>(new Integer[] { 2, 4, 8, 16, 32, 64 });
-    private final JCheckBox preserveCurveLines = new JCheckBox("Curved Brush", true);
+    private final JCheckBox preserveCurveLines = new JCheckBox("Curved Brush", false);
     private final JLabel statusLabel = new JLabel(" ");
     private final JTextPane logPane = new JTextPane();
 
@@ -80,18 +80,21 @@ public final class BrushOptimizer {
         root.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        controls.add(preserveCurveLines);
         controls.add(new JLabel("Grid step:"));
         controls.add(gridStepBox);
         controls.add(new JLabel("Max move:"));
         maxMoveBox.setSelectedItem(16);
         controls.add(maxMoveBox);
-        controls.add(preserveCurveLines);
         preserveCurveLines.addActionListener(event -> updateCurveMode());
         updateCurveMode();
         controls.add(button("Analyze", this::analyzeOnly));
         controls.add(button("Optimize", this::optimizeAllBrushes));
         controls.add(button("Copy result", this::copyOutput));
         controls.add(button("Reset", this::reset));
+        controls.add(new JLabel("Font size:"));
+        controls.add(button("-", event -> changeCodeFontSize(-1)));
+        controls.add(button("+", event -> changeCodeFontSize(1)));
         statusLabel.setForeground(new Color(0, 128, 0));
         controls.add(statusLabel);
         root.add(controls, BorderLayout.NORTH);
@@ -106,7 +109,7 @@ public final class BrushOptimizer {
         logPane.setEditable(false);
         logPane.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
         JScrollPane logScroll = new JScrollPane(logPane);
-        logScroll.setBorder(BorderFactory.createTitledBorder("Optimization Log"));
+        logScroll.setBorder(BorderFactory.createTitledBorder("Log"));
         logScroll.setPreferredSize(new Dimension(950, 150));
 
         JSplitPane workspaceSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, codeSplit, logScroll);
@@ -127,6 +130,12 @@ public final class BrushOptimizer {
         JScrollPane scroll = new JScrollPane(area);
         scroll.setBorder(BorderFactory.createTitledBorder(title));
         return scroll;
+    }
+
+    private void changeCodeFontSize(int delta) {
+        int size = Math.max(8, Math.min(40, inputArea.getFont().getSize() + delta));
+        inputArea.setFont(inputArea.getFont().deriveFont((float) size));
+        outputArea.setFont(outputArea.getFont().deriveFont((float) size));
     }
 
     private JTextArea createCodeArea() {
@@ -155,13 +164,13 @@ public final class BrushOptimizer {
         boolean[] optimizeActor = new boolean[issues.size()];
         java.util.Arrays.fill(optimizeActor, true);
         String optimized = optimizeMap(analyzedMap, issues, optimizeActor, gridStep, maxMove, preserveCurveLines.isSelected());
-        int changedVertices = writeOptimizationLog(analyzedMap, optimized, !writeOutput);
+        int changedLines = writeOptimizationLog(analyzedMap, optimized, !writeOutput);
         appendPlanarityWarnings(optimized);
         if (writeOutput) outputArea.setText(optimized);
         statusLabel.setForeground(new Color(0, 128, 0));
-        statusLabel.setText(changedVertices == 0
+        statusLabel.setText(changedLines == 0
                 ? "✓ No changes required"
-                : (writeOutput ? "✓ Updated " : "✓ Analysis found ") + changedVertices + " Vertex line(s)");
+                : (writeOutput ? "✓ Updated " : "✓ Analysis found ") + changedLines + " Vertex line(s)");
     }
 
     private void copyOutput(ActionEvent ignored) {
@@ -190,7 +199,7 @@ public final class BrushOptimizer {
         logPane.setText("");
         String[] originalLines = original.split("\\R", -1);
         String[] optimizedLines = optimized.split("\\R", -1);
-        int changedVertices = 0;
+        int changeCount = 0;
 
         if (issues.isEmpty()) {
             appendLog("No Brush actors were found in the input.\n", new Color(180, 40, 40));
@@ -206,7 +215,7 @@ public final class BrushOptimizer {
                     changedLines.add(line);
                 }
             }
-            changedVertices += changedLines.size();
+            changeCount += changedLines.size();
             if (changedLines.isEmpty()) {
                 unchangedBrushes.add(issue);
             } else {
@@ -228,7 +237,7 @@ public final class BrushOptimizer {
                 appendLog("  ✓ " + issue.name + "\n", new Color(0, 128, 0));
             }
         }
-        return changedVertices;
+        return changeCount;
     }
 
     private void appendLog(String text, Color color) {
@@ -317,7 +326,6 @@ public final class BrushOptimizer {
             while (issueIndex < issues.size() && line > issues.get(issueIndex).endLine) issueIndex++;
             boolean optimize = issueIndex < issues.size() && optimizeActor[issueIndex]
                     && line >= issues.get(issueIndex).startLine && line <= issues.get(issueIndex).endLine;
-            // Strict invariant: every non-Vertex line is copied byte-for-byte.
             output.append(optimize && VERTEX_LINE.matcher(lines[line]).find()
                     ? snapVertexLine(lines[line], gridStep, maxMove) : lines[line]);
             if (line < lines.length - 1) output.append(System.lineSeparator());
@@ -479,14 +487,24 @@ public final class BrushOptimizer {
     }
 
     private static String replaceVertex(String line, Point3 replacement) {
-        if (!VERTEX_LINE.matcher(line).find()) return line;
+        return replacePoint(line, replacement, VERTEX_LINE);
+    }
+
+    private static String replacePoint(String line, Point3 replacement, Pattern linePattern) {
+        if (!linePattern.matcher(line).find()) return line;
         Matcher matcher = NUMBER.matcher(line);
         if (!matcher.find()) return line;
         int numberStart = matcher.start();
+        int numberEnd = matcher.end();
+        for (int coordinate = 1; coordinate < 3; coordinate++) {
+            if (!matcher.find()) return line;
+            numberEnd = matcher.end();
+        }
         return line.substring(0, numberStart)
                 + format(replacement.x, replacement.x < 0.0) + ","
                 + format(replacement.y, replacement.y < 0.0) + ","
-                + format(replacement.z, replacement.z < 0.0);
+                + format(replacement.z, replacement.z < 0.0)
+                + line.substring(numberEnd);
     }
 
     private static String format(double value, boolean negativeInput) {

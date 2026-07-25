@@ -9,7 +9,6 @@ import java.awt.event.ActionEvent;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -21,6 +20,10 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
+import javax.swing.JTextPane;
+import javax.swing.text.SimpleAttributeSet;
+import javax.swing.text.StyleConstants;
+import javax.swing.text.StyledDocument;
 
 /**
  * Applies the team-specific property changes required after duplicating a map
@@ -39,14 +42,12 @@ public final class MapDoublerPanel extends JPanel {
             Pattern.compile("^\\s*Team\\s*=", Pattern.CASE_INSENSITIVE);
     private static final Pattern TEAM_ONE =
             Pattern.compile("^\\s*Team\\s*=\\s*1(?:\\s*)$", Pattern.CASE_INSENSITIVE);
-    private static final Pattern TAG_OR_EVENT =
-            Pattern.compile("^\\s*(?:Tag|Event)\\s*=", Pattern.CASE_INSENSITIVE);
     private static final Pattern RED_TOKEN =
-            Pattern.compile("(?i)(?<![A-Za-z0-9])red(?=_|[^A-Za-z0-9]|$)");
+            Pattern.compile("red", Pattern.CASE_INSENSITIVE);
 
     private final JTextArea inputArea = codeArea();
     private final JTextArea outputArea = codeArea();
-    private final JTextArea logArea = codeArea();
+    private final JTextPane logArea = new JTextPane();
     private final JLabel status = new JLabel("Paste your map code here, then press Analyze and Double.");
 
     public MapDoublerPanel() {
@@ -64,6 +65,9 @@ public final class MapDoublerPanel extends JPanel {
         controls.add(button("Double", event -> analyze(true)));
         controls.add(button("Copy result", this::copyResult));
         controls.add(button("Reset", this::reset));
+        JLabel note = new JLabel("All Events and Tags in the map must contain the word 'red'.");
+        note.setForeground(new Color(235, 184, 80));
+        controls.add(note);
         status.setForeground(AssistantTheme.MUTED);
         controls.add(status);
         return controls;
@@ -72,7 +76,7 @@ public final class MapDoublerPanel extends JPanel {
     private JPanel createWorkspace() {
         outputArea.setEditable(true);
         logArea.setEditable(false);
-        logArea.setRows(8);
+        logArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
 
         JSplitPane codeSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
                 titledScroll("Input Code:", inputArea),
@@ -80,7 +84,7 @@ public final class MapDoublerPanel extends JPanel {
         codeSplit.setResizeWeight(0.5);
 
         JScrollPane logScroll = new JScrollPane(logArea);
-        logScroll.setBorder(AssistantTheme.titled("Double Log"));
+        logScroll.setBorder(AssistantTheme.titled("Log"));
         logScroll.setPreferredSize(new Dimension(900, 175));
 
         JSplitPane workspaceSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, codeSplit, logScroll);
@@ -156,6 +160,14 @@ public final class MapDoublerPanel extends JPanel {
             output.addAll(actor);
             index = end + 1;
         }
+        for (int line = 0; line < output.size(); line++) {
+            String before = output.get(line);
+            String after = RED_TOKEN.matcher(before).replaceAll("blue");
+            if (!before.equals(after)) {
+                output.set(line, after);
+                changes.add(new Change("Events & Tags", "red changed to blue", before, after));
+            }
+        }
         return new TransformResult(String.join(separator, output), List.copyOf(changes));
     }
 
@@ -176,8 +188,6 @@ public final class MapDoublerPanel extends JPanel {
             setOrInsert(actor, TEAM_NUMBER, "TeamNumber", "1", actorName, changes);
         } else if (actorClass.equalsIgnoreCase("FlagBase")) {
             invertFlagTeam(actor, actorName, changes);
-        } else if (actorClass.equalsIgnoreCase("Mover")) {
-            replaceMoverColors(actor, actorName, changes);
         }
     }
 
@@ -218,20 +228,6 @@ public final class MapDoublerPanel extends JPanel {
         changes.add(new Change(actorName, "Team=1 inserted for the doubled FlagBase", "<missing>", inserted));
     }
 
-    private static void replaceMoverColors(List<String> actor, String actorName, List<Change> changes) {
-        for (int line = 1; line < actor.size() - 1; line++) {
-            String before = actor.get(line);
-            if (!TAG_OR_EVENT.matcher(before).find()) continue;
-            String after = RED_TOKEN.matcher(before).replaceAll("blue");
-            if (!before.equals(after)) {
-                actor.set(line, after);
-                String property = before.trim().toLowerCase(Locale.ROOT).startsWith("tag")
-                        ? "Tag" : "Event";
-                changes.add(new Change(actorName, property + " red token changed to blue", before, after));
-            }
-        }
-    }
-
     private static String replaceAssignment(String line, String key, String value) {
         Pattern assignment = Pattern.compile("(?i)(" + Pattern.quote(key) + "\\s*=\\s*)[^\\s,\\)]+");
         Matcher matcher = assignment.matcher(line);
@@ -254,25 +250,42 @@ public final class MapDoublerPanel extends JPanel {
     }
 
     private void writeLog(List<Change> changes, boolean applied) {
-        StringBuilder log = new StringBuilder();
+        logArea.setText("");
+        StyledDocument document = logArea.getStyledDocument();
+        SimpleAttributeSet normal = new SimpleAttributeSet();
+        StyleConstants.setForeground(normal, AssistantTheme.TEXT);
+        StyleConstants.setFontFamily(normal, Font.MONOSPACED);
+        StyleConstants.setFontSize(normal, 12);
+        SimpleAttributeSet heading = new SimpleAttributeSet(normal);
+        StyleConstants.setForeground(heading, applied
+                ? new Color(94, 205, 130) : new Color(235, 166, 65));
+        StyleConstants.setBold(heading, true);
+        StyleConstants.setFontSize(heading, 15);
         if (changes.isEmpty()) {
-            log.append("No PlayerStart, FlagBase, or Mover property changes were required.\n");
+            appendLog(document, "No PlayerStart, FlagBase, or red-to-blue changes were required.\n", normal);
         } else {
-            log.append(applied ? "Applied changes:\n" : "Changes that will be made:\n");
+            appendLog(document, applied ? "Applied changes:\n" : "Changes that will be made:\n", heading);
             Map<String, List<Change>> byActor = new LinkedHashMap<>();
             for (Change change : changes) {
                 byActor.computeIfAbsent(change.actor(), ignored -> new ArrayList<>()).add(change);
             }
             for (Map.Entry<String, List<Change>> actor : byActor.entrySet()) {
-                log.append("\n").append(actor.getKey()).append(":\n");
+                appendLog(document, "\n" + actor.getKey() + ":\n", normal);
                 for (Change change : actor.getValue()) {
-                    log.append("  ").append(change.before().strip())
-                            .append(" -> ").append(change.after().strip()).append("\n");
+                    appendLog(document, "  " + change.before().strip()
+                            + " -> " + change.after().strip() + "\n", normal);
                 }
             }
         }
-        logArea.setText(log.toString());
         logArea.setCaretPosition(0);
+    }
+
+    private static void appendLog(StyledDocument document, String text, SimpleAttributeSet style) {
+        try {
+            document.insertString(document.getLength(), text, style);
+        } catch (javax.swing.text.BadLocationException exception) {
+            throw new IllegalStateException("Could not update log.", exception);
+        }
     }
 
     private void copyResult(ActionEvent ignored) {

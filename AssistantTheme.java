@@ -1,6 +1,7 @@
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Font;
+import java.util.Locale;
 import javax.swing.BorderFactory;
 import javax.swing.JPanel;
 import javax.swing.UIManager;
@@ -8,6 +9,8 @@ import javax.swing.border.Border;
 
 /** Shared colors and Swing defaults for the assistant's dark theme. */
 public final class AssistantTheme {
+    /** Locale detected before Swing is switched to its English UI resources. */
+    public static final Locale USER_LOCALE = Locale.getDefault();
     public static final Color BACKGROUND = new Color(20, 24, 31);
     public static final Color HEADER = new Color(25, 31, 41);
     public static final Color PANEL = new Color(30, 36, 46);
@@ -21,11 +24,13 @@ public final class AssistantTheme {
     private AssistantTheme() { }
 
     public static void install() {
+        Locale.setDefault(Locale.ENGLISH);
         try {
             UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());
         } catch (Exception ignored) { }
         UIManager.put("Panel.background", PANEL);
         UIManager.put("Label.foreground", TEXT);
+        UIManager.put("Label.background", new Color(0, 0, 0, 0));
         UIManager.put("Button.background", PANEL_ALT);
         UIManager.put("Button.foreground", TEXT);
         UIManager.put("Button.select", ACCENT_DARK);
