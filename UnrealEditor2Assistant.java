@@ -3,6 +3,7 @@ import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
@@ -20,18 +21,22 @@ import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JFrame;
+import javax.swing.ImageIcon;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.UIManager;
+import javax.swing.JSeparator;
+import javax.swing.JTextArea;
 
 /** Single-window launcher and workspace for Unreal Editor 2 utilities. */
 public final class UnrealEditor2Assistant {
     private static final String HOME = "home";
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
-    private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("EEEE, d MMMM uuuu");
+    private static final DateTimeFormatter DATE = DateTimeFormatter
+            .ofPattern("EEEE, d MMMM uuuu", AssistantTheme.USER_LOCALE);
 
     private final CardLayout cardLayout = new CardLayout();
     private final JPanel cards = new JPanel(cardLayout);
@@ -39,6 +44,7 @@ public final class UnrealEditor2Assistant {
     private final Map<String, JButton> navigationButtons = new LinkedHashMap<>();
 
     public static void main(String[] args) {
+        System.setProperty("sun.awt.window.darkMode", "true");
         SwingUtilities.invokeLater(() -> {
             AssistantTheme.install();
             new UnrealEditor2Assistant().show();
@@ -47,10 +53,14 @@ public final class UnrealEditor2Assistant {
 
     private void show() {
         JFrame frame = new JFrame("Unreal Editor 2 Assistant");
+        java.net.URL iconUrl = UnrealEditor2Assistant.class.getResource("/app-icon.png");
+        if (iconUrl != null) {
+            frame.setIconImage(new ImageIcon(iconUrl).getImage());
+        }
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setContentPane(createContent());
-        frame.setMinimumSize(new Dimension(1080, 720));
         frame.setSize(1280, 820);
+        frame.setResizable(false);
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
     }
@@ -62,14 +72,14 @@ public final class UnrealEditor2Assistant {
         navigation.setBackground(AssistantTheme.HEADER);
         navigation.setBorder(BorderFactory.createEmptyBorder(7, 10, 7, 10));
 
-        registerApp(HOME, "\u2302", "Home", createHomePanel());
-        registerApp("optimizer", "\u25a6", "Brush", new BrushOptimizer().createContent());
-        registerApp("double", "\u21c9", "Double", new MapDoublerPanel());
-        registerApp("resizer", "\u2922", "Resize", new ImageResizerPanel());
-        registerApp("screenshots", "\u25a3", "Screens", new ScreenshotMakerPanel());
-        addPlaceholder("+");
-        addPlaceholder("+");
-        addPlaceholder("+");
+        registerApp(HOME, "\u2302", "Home", "\u00a0", createHomePanel());
+        registerApp("generator", "+", "Brush", "Generator", new BrushGeneratorPanel());
+        registerApp("optimizer", "\u25a6", "Brush", "Optimizer", new BrushOptimizer().createContent());
+        registerApp("double", "\u21c9", "Double", "Map", new MapDoublerPanel());
+        registerApp("resizer", "\u2922", "Resize", "Image", new ImageResizerPanel());
+        registerApp("screenshots", "\u25a3", "Map", "Screenshot", new ScreenshotMakerPanel());
+        registerApp("seamless", "\u223f", "Seamless", "Texture", new SeamlessTexturePanel());
+        registerApp("scripting", "\u2328", "UScript", "Assistant", new ScriptingPanel());
         navigation.add(Box.createHorizontalGlue());
 
         root.add(navigation, BorderLayout.NORTH);
@@ -86,10 +96,10 @@ public final class UnrealEditor2Assistant {
         }
     }
 
-    private void registerApp(String id, String icon, String label, JPanel content) {
+    private void registerApp(String id, String icon, String firstLine, String secondLine, JPanel content) {
         cards.add(content, id);
-        JButton button = navButton(icon, label);
-        button.setToolTipText(label);
+        JButton button = navButton(icon, firstLine, secondLine);
+        button.setToolTipText(firstLine + (" ".equals(secondLine) ? "" : " " + secondLine));
         button.addActionListener(event -> showApp(id));
         navigationButtons.put(id, button);
         navigation.add(button);
@@ -97,20 +107,22 @@ public final class UnrealEditor2Assistant {
     }
 
     private void addPlaceholder(String icon) {
-        JButton button = navButton(icon, "Future tool");
+        JButton button = navButton(icon, "Future", "Tool");
         button.setEnabled(false);
         button.setToolTipText("Reserved for a future tool");
         navigation.add(button);
         navigation.add(Box.createHorizontalStrut(6));
     }
 
-    private JButton navButton(String icon, String label) {
-        JButton button = new JButton("<html><div style='text-align:center;font-size:16px'>"
-                + icon + "</div><div style='font-size:9px'>" + label + "</div></html>");
-        button.setPreferredSize(new Dimension(76, 50));
-        button.setMaximumSize(new Dimension(76, 50));
-        button.setMinimumSize(new Dimension(76, 50));
+    private JButton navButton(String icon, String firstLine, String secondLine) {
+        JButton button = new JButton("<html><div style='text-align:center;font-family:Dialog;font-size:16px'>"
+                + icon + "</div><div style='text-align:center;font-size:9px'>"
+                + firstLine + "<br>" + secondLine + "</div></html>");
+        button.setPreferredSize(new Dimension(76, 62));
+        button.setMaximumSize(new Dimension(76, 62));
+        button.setMinimumSize(new Dimension(76, 62));
         button.setFocusable(false);
+        button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         button.setForeground(AssistantTheme.TEXT);
         button.setBackground(AssistantTheme.HEADER);
         button.setBorder(BorderFactory.createLineBorder(AssistantTheme.BORDER));
@@ -139,57 +151,34 @@ public final class UnrealEditor2Assistant {
         subtitle.setBorder(BorderFactory.createEmptyBorder(5, 1, 0, 0));
         welcome.add(heading, BorderLayout.NORTH);
         welcome.add(subtitle, BorderLayout.CENTER);
-        top.add(welcome, BorderLayout.WEST);
-        top.add(createCompactClock(), BorderLayout.EAST);
-        home.add(top, BorderLayout.NORTH);
-
-        JPanel tools = new JPanel();
-        tools.setOpaque(false);
-        tools.setLayout(new BoxLayout(tools, BoxLayout.Y_AXIS));
-        tools.add(toolCard("Brush Optimizer", "Make your off-grid brush on-grid!", "Open", "optimizer"));
-        tools.add(Box.createVerticalStrut(10));
-        tools.add(toolCard("Double", "Double your map.", "Open", "double"));
-        tools.add(Box.createVerticalStrut(10));
-        tools.add(toolCard("Screenshot Maker", "Create a screenshot for your map.", "Open", "screenshots"));
-        tools.add(Box.createVerticalStrut(10));
-        tools.add(toolCard("Image Resizer", "Resize and tune textures to use for mapping.", "Open", "resizer"));
-        tools.add(Box.createVerticalGlue());
-
-        JPanel toolsCard = AssistantTheme.card(new BorderLayout(0, 14));
-        JLabel title = new JLabel("Available tools");
-        title.setFont(title.getFont().deriveFont(Font.BOLD, 19f));
-        toolsCard.add(title, BorderLayout.NORTH);
-        toolsCard.add(tools, BorderLayout.CENTER);
-        home.add(toolsCard, BorderLayout.CENTER);
+        top.add(welcome, BorderLayout.NORTH);
+        JPanel dashboard = new JPanel(new BorderLayout(12, 0));
+        dashboard.setOpaque(false);
+        dashboard.setBorder(BorderFactory.createEmptyBorder(8, 0, 0, 0));
+        dashboard.add(createMapNotes(), BorderLayout.CENTER);
+        JPanel weatherPosition = new JPanel(new BorderLayout(0, 12));
+        weatherPosition.setOpaque(false);
+        weatherPosition.add(createWeatherAndClock(), BorderLayout.NORTH);
+        weatherPosition.add(createFeatureGuide(), BorderLayout.CENTER);
+        dashboard.add(weatherPosition, BorderLayout.EAST);
+        top.add(dashboard, BorderLayout.CENTER);
+        home.add(top, BorderLayout.CENTER);
         return home;
     }
 
-    private JPanel toolCard(String title, String description, String action, String id) {
-        JPanel row = new JPanel(new BorderLayout(16, 0));
-        row.setBackground(AssistantTheme.PANEL_ALT);
-        row.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(AssistantTheme.BORDER),
-                BorderFactory.createEmptyBorder(16, 18, 16, 14)));
-        JLabel text = new JLabel("<html><b>" + title + "</b><br><span style='color:#9ca7b8'>"
-                + description + "</span></html>");
-        text.setFont(text.getFont().deriveFont(15f));
-        row.add(text, BorderLayout.CENTER);
-        JButton open = new JButton(action);
-        open.setPreferredSize(new Dimension(100, 36));
-        open.addActionListener(event -> showApp(id));
-        row.add(open, BorderLayout.EAST);
-        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 74));
-        return row;
-    }
-
     private JPanel createCompactClock() {
-        JPanel clockPanel = AssistantTheme.card(new BorderLayout(10, 0));
-        clockPanel.setPreferredSize(new Dimension(315, 126));
+        JPanel clockPanel = new JPanel();
+        clockPanel.setOpaque(false);
+        clockPanel.setLayout(new BoxLayout(clockPanel, BoxLayout.Y_AXIS));
+        clockPanel.setPreferredSize(new Dimension(150, 190));
         AnalogClock clock = new AnalogClock();
-        clockPanel.add(clock, BorderLayout.WEST);
+        clock.setAlignmentX(Component.CENTER_ALIGNMENT);
+        clockPanel.add(clock);
         JLabel digital = new JLabel("", SwingConstants.CENTER);
-        digital.setFont(new Font(Font.MONOSPACED, Font.BOLD, 22));
-        clockPanel.add(digital, BorderLayout.CENTER);
+        digital.setFont(new Font("Verdana", Font.BOLD, 22));
+        digital.setAlignmentX(Component.CENTER_ALIGNMENT);
+        clockPanel.add(Box.createVerticalStrut(4));
+        clockPanel.add(digital);
         Timer timer = new Timer(250, event -> {
             LocalDateTime now = LocalDateTime.now();
             clock.time = now;
@@ -201,6 +190,79 @@ public final class UnrealEditor2Assistant {
         timer.setInitialDelay(0);
         timer.start();
         return clockPanel;
+    }
+
+    private JPanel createWeatherAndClock() {
+        JPanel combined = AssistantTheme.card(new BorderLayout(12, 0));
+        combined.setPreferredSize(new Dimension(720, 220));
+        combined.add(new WeatherPanel(), BorderLayout.CENTER);
+        JSeparator separator = new JSeparator(SwingConstants.VERTICAL);
+        separator.setForeground(AssistantTheme.BORDER);
+        separator.setPreferredSize(new Dimension(1, 190));
+
+        JPanel clockPosition = new JPanel(new BorderLayout(12, 0));
+        clockPosition.setOpaque(false);
+        clockPosition.add(separator, BorderLayout.WEST);
+        clockPosition.add(createCompactClock(), BorderLayout.CENTER);
+        combined.add(clockPosition, BorderLayout.EAST);
+        return combined;
+    }
+
+    private JPanel createMapNotes() {
+        JPanel notes = AssistantTheme.card(new BorderLayout());
+        notes.setPreferredSize(new Dimension(460, 220));
+        notes.add(new NotesPanel(), BorderLayout.CENTER);
+        return notes;
+    }
+
+    private JPanel createFeatureGuide() {
+        JPanel guide = AssistantTheme.card(new BorderLayout(0, 10));
+        JLabel title = new JLabel("Available Tools");
+        title.setFont(title.getFont().deriveFont(Font.BOLD, 17f));
+        guide.add(title, BorderLayout.NORTH);
+
+        JPanel features = new JPanel(new GridLayout(0, 3, 8, 8));
+        features.setOpaque(false);
+        features.add(featureInfo("To-Do List",
+                "Organize notes and tasks in folders for each map."));
+        features.add(featureInfo("Brush Generator",
+                "Create grid-aligned polygon brushes for common CSG tasks."));
+        features.add(featureInfo("Brush Optimizer",
+                "Find and fix off-grid brush vertices safely."));
+        features.add(featureInfo("Double",
+                "Prepare duplicated map content for the opposite team."));
+        features.add(featureInfo("Screenshot Maker",
+                "Combine, label and export four map screenshots."));
+        features.add(featureInfo("Image Resizer",
+                "Resize images to Unreal-friendly texture dimensions."));
+        features.add(featureInfo("Seamless Texture",
+                "Turn an image crop into a seamless square texture."));
+        features.add(featureInfo("Scripting",
+                "Write, check and compile UnrealScript with templates."));
+
+        guide.add(features, BorderLayout.CENTER);
+        return guide;
+    }
+
+    private JPanel featureInfo(String title, String description) {
+        JPanel feature = new JPanel(new BorderLayout(0, 4));
+        feature.setBackground(AssistantTheme.PANEL_ALT);
+        feature.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(AssistantTheme.BORDER),
+                BorderFactory.createEmptyBorder(9, 10, 8, 10)));
+        JLabel heading = new JLabel(title);
+        heading.setFont(heading.getFont().deriveFont(Font.BOLD, 13f));
+        feature.add(heading, BorderLayout.NORTH);
+        JTextArea text = new JTextArea(description);
+        text.setEditable(false);
+        text.setFocusable(false);
+        text.setLineWrap(true);
+        text.setWrapStyleWord(true);
+        text.setOpaque(false);
+        text.setForeground(AssistantTheme.MUTED);
+        text.setFont(text.getFont().deriveFont(12f));
+        feature.add(text, BorderLayout.CENTER);
+        return feature;
     }
 
     private static final class AnalogClock extends JPanel {
