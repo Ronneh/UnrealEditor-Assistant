@@ -51,6 +51,7 @@ import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingConstants;
+import javax.swing.TransferHandler;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 /**
@@ -127,6 +128,7 @@ public final class ScreenshotMakerPanel extends JPanel {
         add(stepCards, BorderLayout.CENTER);
         steps.show(stepCards, "crop");
         installPasteShortcut();
+        installFileDrop();
         updateCropSelection();
     }
 
@@ -136,7 +138,7 @@ public final class ScreenshotMakerPanel extends JPanel {
         JLabel title = new JLabel("Screenshot Maker");
         title.setFont(title.getFont().deriveFont(Font.BOLD, 23f));
         header.add(title, BorderLayout.WEST);
-        JLabel info = new JLabel("1. Load & crop   →   2. Arrange & label   →   3. Export PNG");
+        JLabel info = new JLabel("1. Load & crop   >   2. Arrange & label   >   3. Export PNG");
         info.setForeground(AssistantTheme.MUTED);
         header.add(info, BorderLayout.EAST);
         return header;
@@ -154,12 +156,13 @@ public final class ScreenshotMakerPanel extends JPanel {
             JPanel shotEntry = new JPanel(new BorderLayout(5, 0));
             shotEntry.setOpaque(false);
             shotButtons[i]=new JButton("<html><b>Screenshot " + (i+1)
-                    + "</b><br><span style='color:#9ca7b8'>Empty — select and paste</span></html>");
+                    + "</b><br><span style='color:#9ca7b8'>Empty</span></html>");
             shotButtons[i].setHorizontalAlignment(SwingConstants.LEFT);
             shotButtons[i].addActionListener(event -> selectShot(index));
-            JButton openFolder = new JButton("\uD83D\uDCC1");
+            shotButtons[i].setTransferHandler(fileDropHandler(index));
+            JButton openFolder = new JButton("Open");
             openFolder.setToolTipText("Open an image file for Screenshot " + (i + 1));
-            openFolder.setPreferredSize(new Dimension(42, 32));
+            openFolder.setPreferredSize(new Dimension(58, 32));
             openFolder.setFocusable(false);
             openFolder.addActionListener(event -> loadShot(index));
             JPanel folderPosition = new JPanel(new BorderLayout());
@@ -240,7 +243,7 @@ public final class ScreenshotMakerPanel extends JPanel {
         labelText.setCaretColor(AssistantTheme.TEXT);
         labelText.setBorder(fontBox.getBorder());
         fontBox.setRenderer(new FontPreviewRenderer());
-        fontBox.setSelectedItem(Font.SANS_SERIF);
+        fontBox.setSelectedItem("Verdana");
 
         if (fontSize.getEditor() instanceof JSpinner.DefaultEditor editor) {
             editor.getTextField().setBackground(AssistantTheme.PANEL_ALT);
@@ -487,10 +490,14 @@ public final class ScreenshotMakerPanel extends JPanel {
         JFileChooser chooser=new JFileChooser();
         chooser.setFileFilter(new FileNameExtensionFilter("Screenshots (PNG, JPG, BMP)","png","jpg","jpeg","bmp"));
         if (chooser.showOpenDialog(this)!=JFileChooser.APPROVE_OPTION) return;
+        loadShotFile(index, chooser.getSelectedFile(), "file");
+    }
+
+    private void loadShotFile(int index, File file, String source) {
         try {
-            BufferedImage image=ImageIO.read(chooser.getSelectedFile());
+            BufferedImage image=ImageIO.read(file);
             if (image==null) throw new IllegalArgumentException("Unsupported image format.");
-            setShotImage(index, image, "file");
+            setShotImage(index, image, source);
             String resolution=image.getWidth()+"x"+image.getHeight();
             if (!isValidResolution(resolution)) {
                 cropStatus.setText("Loaded "+resolution+" — this is outside the recommended resolution list, but can still be used.");
@@ -498,6 +505,41 @@ public final class ScreenshotMakerPanel extends JPanel {
         } catch (Exception exception) {
             JOptionPane.showMessageDialog(this,exception.getMessage(),"Could not load screenshot",JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    private void installFileDrop() {
+        TransferHandler handler = fileDropHandler(null);
+        setTransferHandler(handler);
+        stepCards.setTransferHandler(handler);
+        cropCanvas.setTransferHandler(handler);
+    }
+
+    private TransferHandler fileDropHandler(Integer fixedIndex) {
+        return new TransferHandler() {
+            @Override public boolean canImport(TransferSupport support) {
+                return support.isDataFlavorSupported(DataFlavor.javaFileListFlavor);
+            }
+
+            @Override public boolean importData(TransferSupport support) {
+                if (!canImport(support)) return false;
+                try {
+                    Object value = support.getTransferable().getTransferData(DataFlavor.javaFileListFlavor);
+                    if (!(value instanceof List<?> files)) return false;
+                    int index = fixedIndex == null ? activeShot : fixedIndex;
+                    boolean loaded = false;
+                    for (Object item : files) {
+                        if (index >= shots.length || !(item instanceof File file)) break;
+                        loadShotFile(index++, file, "drag and drop");
+                        loaded = true;
+                    }
+                    return loaded;
+                } catch (Exception exception) {
+                    cropStatus.setForeground(new Color(225, 105, 105));
+                    cropStatus.setText("The dropped file is not a supported image.");
+                    return false;
+                }
+            }
+        };
     }
 
     private void installPasteShortcut() {
@@ -1004,7 +1046,7 @@ public final class ScreenshotMakerPanel extends JPanel {
                 JList<?> list, Object value, int index, boolean selected, boolean hasFocus) {
             JLabel label = (JLabel) super.getListCellRendererComponent(
                     list, value, index, selected, hasFocus);
-            String family = value == null ? Font.SANS_SERIF : value.toString();
+            String family = value == null ? "Verdana" : value.toString();
             label.setText(family);
             label.setFont(new Font(family, Font.PLAIN, 16));
             label.setBorder(BorderFactory.createEmptyBorder(4, 7, 4, 7));

@@ -222,7 +222,7 @@ public final class ImageResizerPanel extends JPanel {
         BufferedImage square = cropSquare(original);
         BufferedImage resized = ImageToolSupport.resize(square, outputSize, outputSize);
         processed = adjust(resized);
-        details.setText(original.getWidth() + " × " + original.getHeight() + "  →  "
+        details.setText(original.getWidth() + " × " + original.getHeight() + "  to  "
                 + outputSize + " × " + outputSize + " PNG");
         preview.repaint();
     }

@@ -11,5 +11,13 @@
     </properties>
     <build>
         <sourceDirectory>${project.basedir}</sourceDirectory>
+        <resources>
+            <resource>
+                <directory>${project.basedir}</directory>
+                <includes>
+                    <include>app-icon.png</include>
+                </includes>
+            </resource>
+        </resources>
     </build>
 </project>

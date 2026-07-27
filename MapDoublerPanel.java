@@ -21,6 +21,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextPane;
+import javax.swing.BoxLayout;
 import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
@@ -48,7 +49,7 @@ public final class MapDoublerPanel extends JPanel {
     private final JTextArea inputArea = codeArea();
     private final JTextArea outputArea = codeArea();
     private final JTextPane logArea = new JTextPane();
-    private final JLabel status = new JLabel("Paste your map code here, then press Analyze and Double.");
+    private final JLabel status = new JLabel("Paste your map code here, then press Analyze and Double map.");
 
     public MapDoublerPanel() {
         super(new BorderLayout(8, 8));
@@ -59,29 +60,36 @@ public final class MapDoublerPanel extends JPanel {
     }
 
     private JPanel createControls() {
-        JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        JPanel controls = new JPanel(new BorderLayout(12, 0));
         controls.setOpaque(false);
-        controls.add(button("Analyze", event -> analyze(false)));
-        controls.add(button("Double", event -> analyze(true)));
-        controls.add(button("Copy result", this::copyResult));
-        controls.add(button("Reset", this::reset));
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        actions.setOpaque(false);
+        actions.add(button("Analyze", event -> analyze(false)));
+        actions.add(button("Double map!", event -> analyze(true)));
+        actions.add(button("Copy result", this::copyResult));
+        actions.add(button("Reset", this::reset));
+        controls.add(actions, BorderLayout.WEST);
+
+        JPanel messages = new JPanel();
+        messages.setOpaque(false);
+        messages.setLayout(new BoxLayout(messages, BoxLayout.Y_AXIS));
         JLabel note = new JLabel("All Events and Tags in the map must contain the word 'red'.");
         note.setForeground(new Color(235, 184, 80));
-        controls.add(note);
+        messages.add(note);
         status.setForeground(AssistantTheme.MUTED);
-        controls.add(status);
+        messages.add(status);
+        controls.add(messages, BorderLayout.CENTER);
         return controls;
     }
 
     private JPanel createWorkspace() {
         outputArea.setEditable(true);
         logArea.setEditable(false);
-        logArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
-
         JSplitPane codeSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
                 titledScroll("Input Code:", inputArea),
                 titledScroll("Doubled result:", outputArea));
         codeSplit.setResizeWeight(0.5);
+        styleSplitPane(codeSplit);
 
         JScrollPane logScroll = new JScrollPane(logArea);
         logScroll.setBorder(AssistantTheme.titled("Log"));
@@ -90,12 +98,16 @@ public final class MapDoublerPanel extends JPanel {
         JSplitPane workspaceSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, codeSplit, logScroll);
         workspaceSplit.setResizeWeight(0.76);
         workspaceSplit.setContinuousLayout(true);
-        workspaceSplit.setBorder(BorderFactory.createEmptyBorder());
+        styleSplitPane(workspaceSplit);
 
         JPanel workspace = new JPanel(new BorderLayout());
         workspace.setOpaque(false);
         workspace.add(workspaceSplit, BorderLayout.CENTER);
         return workspace;
+    }
+
+    private static void styleSplitPane(JSplitPane splitPane) {
+        AssistantTheme.styleSplitPane(splitPane);
     }
 
     private JButton button(String text, java.util.function.Consumer<ActionEvent> action) {
@@ -112,7 +124,7 @@ public final class MapDoublerPanel extends JPanel {
 
     private static JTextArea codeArea() {
         JTextArea area = new JTextArea();
-        area.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        area.setFont(new Font("Verdana", Font.PLAIN, 12));
         area.setLineWrap(false);
         return area;
     }
@@ -254,7 +266,7 @@ public final class MapDoublerPanel extends JPanel {
         StyledDocument document = logArea.getStyledDocument();
         SimpleAttributeSet normal = new SimpleAttributeSet();
         StyleConstants.setForeground(normal, AssistantTheme.TEXT);
-        StyleConstants.setFontFamily(normal, Font.MONOSPACED);
+        StyleConstants.setFontFamily(normal, "Verdana");
         StyleConstants.setFontSize(normal, 12);
         SimpleAttributeSet heading = new SimpleAttributeSet(normal);
         StyleConstants.setForeground(heading, applied

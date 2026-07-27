@@ -37,6 +37,8 @@ import javax.swing.text.StyledDocument;
 public final class BrushOptimizer {
 
     private static final double GRID_EPSILON = 1.0e-9;
+    /** Unreal commonly serializes exact grid values with a tiny floating-point error. */
+    private static final double GRID_NOISE_TOLERANCE = 0.01;
     private static final double MIDPOINT_TOLERANCE = 0.25;
     private static final int MAX_CURVE_GRID_MOVES = 4;
     private static final Pattern BEGIN_BRUSH_ACTOR = Pattern.compile(
@@ -48,11 +50,18 @@ public final class BrushOptimizer {
 
     private final JTextArea inputArea = createCodeArea();
     private final JTextArea outputArea = createCodeArea();
-    private final JComboBox<Integer> gridStepBox = new JComboBox<>(new Integer[] { 2, 4, 8, 16, 32, 64 });
-    private final JComboBox<Integer> maxMoveBox = new JComboBox<>(new Integer[] { 2, 4, 8, 16, 32, 64 });
+    private final JComboBox<Integer> gridStepBox =
+            new JComboBox<>(new Integer[] { 2, 4, 8, 16, 32, 64, 128, 256 });
+    private final JComboBox<Integer> minMoveBox =
+            new JComboBox<>(new Integer[] { 0, 2, 4, 8, 16, 32, 64, 128, 256 });
+    private final JComboBox<Integer> maxMoveBox =
+            new JComboBox<>(new Integer[] { 2, 4, 8, 16, 32, 64, 128, 256 });
+    private final JComboBox<Integer> fontSizeBox =
+            new JComboBox<>(new Integer[] { 8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32, 36, 40 });
     private final JCheckBox preserveCurveLines = new JCheckBox("Curved Brush", false);
     private final JLabel statusLabel = new JLabel(" ");
     private final JTextPane logPane = new JTextPane();
+    private final BrushPreviewPanel preview = new BrushPreviewPanel();
 
     private String analyzedMap = "";
     private List<BrushIssue> issues = List.of();
@@ -77,14 +86,32 @@ public final class BrushOptimizer {
      */
     public JPanel createContent() {
         JPanel root = new JPanel(new BorderLayout(8, 8));
+        root.setBackground(AssistantTheme.BACKGROUND);
         root.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        controls.setBackground(AssistantTheme.BACKGROUND);
+        preserveCurveLines.setBackground(AssistantTheme.BACKGROUND);
         controls.add(preserveCurveLines);
         controls.add(new JLabel("Grid step:"));
+        gridStepBox.setSelectedItem(32);
         controls.add(gridStepBox);
+        controls.add(new JLabel("Min. move:"));
+        minMoveBox.setSelectedItem(32);
+        minMoveBox.setToolTipText("Minimum move for genuinely off-grid coordinates; tiny Unreal rounding errors are only corrected.");
+        minMoveBox.addActionListener(event -> {
+            if ((Integer) maxMoveBox.getSelectedItem() < (Integer) minMoveBox.getSelectedItem()) {
+                maxMoveBox.setSelectedItem(minMoveBox.getSelectedItem());
+            }
+        });
+        controls.add(minMoveBox);
         controls.add(new JLabel("Max move:"));
-        maxMoveBox.setSelectedItem(16);
+        maxMoveBox.setSelectedItem(256);
+        maxMoveBox.addActionListener(event -> {
+            if ((Integer) minMoveBox.getSelectedItem() > (Integer) maxMoveBox.getSelectedItem()) {
+                minMoveBox.setSelectedItem(maxMoveBox.getSelectedItem());
+            }
+        });
         controls.add(maxMoveBox);
         preserveCurveLines.addActionListener(event -> updateCurveMode());
         updateCurveMode();
@@ -93,8 +120,9 @@ public final class BrushOptimizer {
         controls.add(button("Copy result", this::copyOutput));
         controls.add(button("Reset", this::reset));
         controls.add(new JLabel("Font size:"));
-        controls.add(button("-", event -> changeCodeFontSize(-1)));
-        controls.add(button("+", event -> changeCodeFontSize(1)));
+        fontSizeBox.setSelectedItem(12);
+        fontSizeBox.addActionListener(event -> setCodeFontSize((Integer) fontSizeBox.getSelectedItem()));
+        controls.add(fontSizeBox);
         statusLabel.setForeground(new Color(0, 128, 0));
         controls.add(statusLabel);
         root.add(controls, BorderLayout.NORTH);
@@ -105,17 +133,22 @@ public final class BrushOptimizer {
         JSplitPane codeSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
                 titledScroll("Input Code:", inputArea), titledScroll("Optimized result:", outputArea));
         codeSplit.setResizeWeight(0.5);
+        AssistantTheme.styleSplitPane(codeSplit);
 
         logPane.setEditable(false);
-        logPane.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        logPane.setFont(new Font("Verdana", Font.PLAIN, 12));
         JScrollPane logScroll = new JScrollPane(logPane);
-        logScroll.setBorder(BorderFactory.createTitledBorder("Log"));
+        logScroll.setBorder(AssistantTheme.titled("Log"));
         logScroll.setPreferredSize(new Dimension(950, 150));
 
-        JSplitPane workspaceSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, codeSplit, logScroll);
+        JPanel lowerWorkspace = new JPanel(new BorderLayout(7, 0));
+        lowerWorkspace.setOpaque(false);
+        lowerWorkspace.add(logScroll, BorderLayout.CENTER);
+        lowerWorkspace.add(preview, BorderLayout.EAST);
+
+        JSplitPane workspaceSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, codeSplit, lowerWorkspace);
         workspaceSplit.setResizeWeight(0.78);
-        workspaceSplit.setContinuousLayout(true);
-        workspaceSplit.setBorder(BorderFactory.createEmptyBorder());
+        AssistantTheme.styleSplitPane(workspaceSplit);
         root.add(workspaceSplit, BorderLayout.CENTER);
         return root;
     }
@@ -128,26 +161,32 @@ public final class BrushOptimizer {
 
     private JScrollPane titledScroll(String title, JTextArea area) {
         JScrollPane scroll = new JScrollPane(area);
-        scroll.setBorder(BorderFactory.createTitledBorder(title));
+        scroll.setBorder(AssistantTheme.titled(title));
         return scroll;
     }
 
-    private void changeCodeFontSize(int delta) {
-        int size = Math.max(8, Math.min(40, inputArea.getFont().getSize() + delta));
+    private void setCodeFontSize(int size) {
         inputArea.setFont(inputArea.getFont().deriveFont((float) size));
         outputArea.setFont(outputArea.getFont().deriveFont((float) size));
     }
 
     private JTextArea createCodeArea() {
         JTextArea area = new JTextArea();
-        area.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        area.setFont(new Font("Verdana", Font.PLAIN, 12));
         area.setLineWrap(false);
         return area;
     }
 
     private void updateCurveMode() {
-        if (preserveCurveLines.isSelected()) gridStepBox.setSelectedItem(2);
+        if (preserveCurveLines.isSelected()) {
+            gridStepBox.setSelectedItem(2);
+            minMoveBox.setSelectedItem(0);
+        } else {
+            gridStepBox.setSelectedItem(32);
+            minMoveBox.setSelectedItem(32);
+        }
         gridStepBox.setEnabled(!preserveCurveLines.isSelected());
+        minMoveBox.setEnabled(!preserveCurveLines.isSelected());
     }
 
     private void analyzeOnly(ActionEvent ignored) { runOptimization(false); }
@@ -159,18 +198,24 @@ public final class BrushOptimizer {
     private void runOptimization(boolean writeOutput) {
         analyzedMap = inputArea.getText();
         int gridStep = (Integer) gridStepBox.getSelectedItem();
+        int minMove = (Integer) minMoveBox.getSelectedItem();
         int maxMove = (Integer) maxMoveBox.getSelectedItem();
-        issues = findOffGridBrushes(analyzedMap, gridStep);
+        issues = findOffGridBrushes(analyzedMap, gridStep, minMove);
         boolean[] optimizeActor = new boolean[issues.size()];
         java.util.Arrays.fill(optimizeActor, true);
-        String optimized = optimizeMap(analyzedMap, issues, optimizeActor, gridStep, maxMove, preserveCurveLines.isSelected());
+        String optimized = optimizeMap(
+                analyzedMap, issues, optimizeActor, gridStep, minMove, maxMove, preserveCurveLines.isSelected());
         int changedLines = writeOptimizationLog(analyzedMap, optimized, !writeOutput);
         appendPlanarityWarnings(optimized);
         if (writeOutput) outputArea.setText(optimized);
+        boolean faulty = issues.stream().anyMatch(issue -> issue.offGridCoordinates > 0);
+        preview.showBrush(writeOutput ? optimized : analyzedMap,
+                writeOutput || !faulty ? new Color(94, 205, 130) : new Color(225, 75, 75),
+                writeOutput ? "Optimized result" : faulty ? "Input: off-grid" : "Input: on-grid");
         statusLabel.setForeground(new Color(0, 128, 0));
         statusLabel.setText(changedLines == 0
-                ? "✓ No changes required"
-                : (writeOutput ? "✓ Updated " : "✓ Analysis found ") + changedLines + " Vertex line(s)");
+                ? "OK: No changes required"
+                : (writeOutput ? "OK: Updated " : "OK: Analysis found ") + changedLines + " Vertex line(s)");
     }
 
     private void copyOutput(ActionEvent ignored) {
@@ -183,7 +228,7 @@ public final class BrushOptimizer {
         Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
         clipboard.setContents(new StringSelection(output), null);
         statusLabel.setForeground(new Color(0, 128, 0));
-        statusLabel.setText("✓ Copied");
+        statusLabel.setText("OK: Copied");
     }
 
     private void reset(ActionEvent ignored) {
@@ -192,6 +237,7 @@ public final class BrushOptimizer {
         logPane.setText("");
         issues = List.of();
         analyzedMap = "";
+        preview.showBrush("", AssistantTheme.MUTED, "Analyze a brush to preview it");
         statusLabel.setText(" ");
     }
 
@@ -234,7 +280,7 @@ public final class BrushOptimizer {
         if (!unchangedBrushes.isEmpty()) {
             appendLog("\nAlready on-grid brushes; no changes required:\n", new Color(0, 128, 0));
             for (BrushIssue issue : unchangedBrushes) {
-                appendLog("  ✓ " + issue.name + "\n", new Color(0, 128, 0));
+                appendLog("  OK: " + issue.name + "\n", new Color(0, 128, 0));
             }
         }
         return changeCount;
@@ -269,7 +315,7 @@ public final class BrushOptimizer {
         double length=Math.sqrt(nx*nx+ny*ny+nz*nz); return length == 0 ? 0 : Math.abs(nx*(d.x-a.x)+ny*(d.y-a.y)+nz*(d.z-a.z))/length;
     }
 
-    private static List<BrushIssue> findOffGridBrushes(String map, int gridStep) {
+    private static List<BrushIssue> findOffGridBrushes(String map, int gridStep, int minMove) {
         String[] lines = map.split("\\R", -1);
         List<BrushIssue> found = new ArrayList<>();
 
@@ -282,7 +328,7 @@ public final class BrushOptimizer {
             int offGridCoordinates = 0;
             double largestAdjustment = 0.0;
             for (int line = index; line <= end; line++) {
-                GridCheck check = checkVertexLine(lines[line], gridStep);
+                GridCheck check = checkVertexLine(lines[line], gridStep, minMove);
                 offGridCoordinates += check.offGridCoordinates;
                 largestAdjustment = Math.max(largestAdjustment, check.largestAdjustment);
             }
@@ -299,14 +345,14 @@ public final class BrushOptimizer {
         return -1;
     }
 
-    private static GridCheck checkVertexLine(String line, int gridStep) {
+    private static GridCheck checkVertexLine(String line, int gridStep, int minMove) {
         if (!VERTEX_LINE.matcher(line).find()) return GridCheck.CLEAN;
         Matcher matcher = NUMBER.matcher(line);
         int offGrid = 0;
         double largestAdjustment = 0.0;
         for (int coordinate = 0; coordinate < 3 && matcher.find(); coordinate++) {
             double value = Double.parseDouble(matcher.group());
-            double snapped = Math.rint(value / gridStep) * gridStep;
+            double snapped = snapTarget(value, gridStep, minMove);
             double adjustment = Math.abs(snapped - value);
             if (adjustment > GRID_EPSILON) {
                 offGrid++;
@@ -316,8 +362,8 @@ public final class BrushOptimizer {
         return new GridCheck(offGrid, largestAdjustment);
     }
 
-    private static String optimizeMap(String map, List<BrushIssue> issues, boolean[] optimizeActor, int gridStep, int maxMove,
-                                      boolean preserveStraightChains) {
+    private static String optimizeMap(String map, List<BrushIssue> issues, boolean[] optimizeActor,
+                                      int gridStep, int minMove, int maxMove, boolean preserveStraightChains) {
         String[] lines = map.split("\\R", -1);
         StringBuilder output = new StringBuilder();
         int issueIndex = 0;
@@ -327,7 +373,7 @@ public final class BrushOptimizer {
             boolean optimize = issueIndex < issues.size() && optimizeActor[issueIndex]
                     && line >= issues.get(issueIndex).startLine && line <= issues.get(issueIndex).endLine;
             output.append(optimize && VERTEX_LINE.matcher(lines[line]).find()
-                    ? snapVertexLine(lines[line], gridStep, maxMove) : lines[line]);
+                    ? snapVertexLine(lines[line], gridStep, minMove, maxMove) : lines[line]);
             if (line < lines.length - 1) output.append(System.lineSeparator());
         }
         String optimized = output.toString();
@@ -457,7 +503,7 @@ public final class BrushOptimizer {
 
     private static double squared(double value) { return value * value; }
 
-    private static String snapVertexLine(String line, int gridStep, int maxMove) {
+    private static String snapVertexLine(String line, int gridStep, int minMove, int maxMove) {
         if (!VERTEX_LINE.matcher(line).find()) return line;
         Matcher matcher = NUMBER.matcher(line);
         StringBuffer output = new StringBuffer();
@@ -465,7 +511,7 @@ public final class BrushOptimizer {
         while (coordinate < 3 && matcher.find()) {
             String token = matcher.group();
             double value = Double.parseDouble(token);
-            double snapped = Math.rint(value / gridStep) * gridStep;
+            double snapped = snapTarget(value, gridStep, minMove);
             double adjustment = Math.abs(snapped - value);
             String replacement = adjustment > GRID_EPSILON && adjustment <= maxMove ? format(snapped, token.startsWith("-")) : token;
             matcher.appendReplacement(output, Matcher.quoteReplacement(replacement));
@@ -473,6 +519,26 @@ public final class BrushOptimizer {
         }
         matcher.appendTail(output);
         return output.toString();
+    }
+
+    /**
+     * Returns an aligned coordinate. Tiny serialization errors go to the
+     * nearest grid point; genuinely off-grid values continue in that snapping
+     * direction until the configured minimum movement is reached.
+     */
+    private static double snapTarget(double value, int gridStep, int minMove) {
+        double nearest = Math.rint(value / gridStep) * gridStep;
+        double nearestMove = Math.abs(nearest - value);
+        if (nearestMove <= GRID_EPSILON || nearestMove <= GRID_NOISE_TOLERANCE || minMove <= nearestMove) {
+            return nearest;
+        }
+        double direction = Math.signum(nearest - value);
+        if (direction == 0.0) return nearest;
+        double target = nearest;
+        while (Math.abs(target - value) + GRID_EPSILON < minMove) {
+            target += direction * gridStep;
+        }
+        return target;
     }
 
     private static Point3 readVertex(String line) {

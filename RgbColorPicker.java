@@ -24,10 +24,6 @@ import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
 import javax.swing.event.ChangeListener;
 
-/**
- * Compact RGB picker: saturation/brightness square, hue refinement strip and
- * exact RGB inputs. It intentionally has no tabbed models or preview panel.
- */
 public final class RgbColorPicker extends JDialog {
     private final ColorSquare square = new ColorSquare();
     private final HueStrip hueStrip = new HueStrip();
@@ -219,6 +215,7 @@ public final class RgbColorPicker extends JDialog {
             hue = clamp(y / (float) Math.max(1, getHeight() - 1));
             square.invalidateGradient();
             updateChannels();
+            square.repaint();
             repaint();
         }
 

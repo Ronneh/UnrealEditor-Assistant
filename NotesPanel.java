@@ -3,6 +3,9 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -16,6 +19,7 @@ import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JEditorPane;
+import javax.swing.Icon;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -42,7 +46,7 @@ import javax.swing.tree.TreePath;
 public final class NotesPanel extends JPanel {
     private static final String EMPTY_HTML = "<html><body><p></p></body></html>";
     private final Path storageRoot;
-    private final DefaultMutableTreeNode rootNode = new DefaultMutableTreeNode(new Entry("Maps", null, true));
+    private final DefaultMutableTreeNode rootNode = new DefaultMutableTreeNode();
     private final DefaultTreeModel treeModel = new DefaultTreeModel(rootNode);
     private final JTree tree = new JTree(treeModel);
     private final JEditorPane editor = htmlPane(true);
@@ -56,6 +60,7 @@ public final class NotesPanel extends JPanel {
         setPreferredSize(new Dimension(445, 220));
         storageRoot = resolveStorageRoot();
         initializeStorage();
+        rootNode.setUserObject(new Entry("All notes", storageRoot, true));
         add(createHeader(), BorderLayout.NORTH);
         add(createWorkspace(), BorderLayout.CENTER);
         installShortcuts();
@@ -70,7 +75,7 @@ public final class NotesPanel extends JPanel {
         header.add(title, BorderLayout.WEST);
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
         actions.setOpaque(false);
-        actions.add(button("+ Map", event -> createMap()));
+        actions.add(button("+ New Folder", event -> createFolder()));
         actions.add(button("+ Note", event -> createNote()));
         actions.add(button("Rename", event -> renameSelection()));
         actions.add(button("Delete", event -> deleteSelection()));
@@ -84,6 +89,14 @@ public final class NotesPanel extends JPanel {
         tree.setBackground(AssistantTheme.PANEL_ALT);
         tree.setForeground(AssistantTheme.TEXT);
         tree.setCellRenderer(new DefaultTreeCellRenderer() {
+            {
+                setBackgroundNonSelectionColor(AssistantTheme.PANEL_ALT);
+                setBackgroundSelectionColor(AssistantTheme.ACCENT_DARK);
+                setTextNonSelectionColor(AssistantTheme.TEXT);
+                setTextSelectionColor(AssistantTheme.TEXT);
+                setBorderSelectionColor(AssistantTheme.ACCENT);
+            }
+
             @Override
             public java.awt.Component getTreeCellRendererComponent(
                     JTree tree, Object value, boolean selected, boolean expanded,
@@ -104,10 +117,12 @@ public final class NotesPanel extends JPanel {
         editorPanel.add(editorTitle, BorderLayout.NORTH);
         editorPanel.add(createEditorArea(), BorderLayout.CENTER);
 
-        JSplitPane all = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, new JScrollPane(tree), editorPanel);
-        all.setResizeWeight(0.28);
-        all.setDividerSize(5);
-        all.setBorder(BorderFactory.createEmptyBorder());
+        JScrollPane treeScroll = new JScrollPane(tree);
+        treeScroll.setPreferredSize(new Dimension(185, 180));
+        JSplitPane all = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, treeScroll, editorPanel);
+        all.setResizeWeight(0.42);
+        AssistantTheme.styleSplitPane(all);
+        all.setDividerLocation(185);
         return all;
     }
 
@@ -125,8 +140,11 @@ public final class NotesPanel extends JPanel {
         toolbar.add(button("B", event -> toggleStyle("bold")));
         toolbar.add(button("I", event -> toggleStyle("italic")));
         toolbar.add(button("U", event -> toggleStyle("underline")));
-        toolbar.add(button("A", event -> chooseTextColor()));
-        toolbar.add(button("•", event -> insertBullet()));
+        toolbar.add(button("\u2022", event -> insertBullet()));
+        JButton colorButton = button("", event -> chooseTextColor());
+        colorButton.setIcon(new ColorCircleIcon());
+        colorButton.setToolTipText("Text color");
+        toolbar.add(colorButton);
         toolbar.add(button("Save", event -> saveCurrent()));
         panel.add(toolbar, BorderLayout.NORTH);
         panel.add(new JScrollPane(editor), BorderLayout.CENTER);
@@ -205,10 +223,41 @@ public final class NotesPanel extends JPanel {
     private void insertBullet() {
         if (!editor.isEnabled()) return;
         try {
-            editor.getDocument().insertString(editor.getCaretPosition(), "• ", null);
+            editor.getDocument().insertString(editor.getCaretPosition(), "\u2022 ", null);
             editor.requestFocusInWindow();
         } catch (javax.swing.text.BadLocationException exception) {
             throw new IllegalStateException("Could not insert bullet.", exception);
+        }
+    }
+
+    private void insertBulletLineBreak(javax.swing.Action insertBreak, ActionEvent event) {
+        if (editor.getSelectionStart() != editor.getSelectionEnd()) {
+            insertBreak.actionPerformed(event);
+            return;
+        }
+        javax.swing.text.Document document = editor.getDocument();
+        int caret = editor.getCaretPosition();
+        try {
+            String text = document.getText(0, document.getLength());
+            int start = text.lastIndexOf('\n', Math.max(0, caret - 1)) + 1;
+            int end = text.indexOf('\n', caret);
+            if (end < 0) end = text.length();
+            String line = text.substring(start, end);
+            String bulletPrefix = "\u2022 ";
+            if (!line.startsWith(bulletPrefix)) {
+                insertBreak.actionPerformed(event);
+                return;
+            }
+            if (line.substring(bulletPrefix.length()).trim().isEmpty()) {
+                document.remove(start, bulletPrefix.length());
+                editor.setCaretPosition(start);
+                insertBreak.actionPerformed(event);
+                return;
+            }
+            insertBreak.actionPerformed(event);
+            document.insertString(editor.getCaretPosition(), bulletPrefix, null);
+        } catch (javax.swing.text.BadLocationException exception) {
+            throw new IllegalStateException("Could not continue the bullet list.", exception);
         }
     }
 
@@ -221,25 +270,34 @@ public final class NotesPanel extends JPanel {
         editor.getActionMap().put("saveNote", new AbstractAction() {
             @Override public void actionPerformed(ActionEvent event) { saveCurrent(); }
         });
+        javax.swing.Action insertBreak = editor.getActionMap().get(DefaultEditorKit.insertBreakAction);
+        editor.getInputMap().put(KeyStroke.getKeyStroke("ENTER"), "bulletLineBreak");
+        editor.getActionMap().put("bulletLineBreak", new AbstractAction() {
+            @Override public void actionPerformed(ActionEvent event) {
+                insertBulletLineBreak(insertBreak, event);
+            }
+        });
     }
 
-    private void createMap() {
-        String name = askName("New map", "Map name:");
+    private void createFolder() {
+        Path parent = selectedFolder();
+        if (parent == null) parent = storageRoot;
+        String name = askName("New folder", "Folder name:");
         if (name == null) return;
         try {
-            Path folder = uniquePath(storageRoot, safeName(name), "");
+            Path folder = uniquePath(parent, safeName(name), "");
             Files.createDirectories(folder);
             reloadTree(folder);
         } catch (IOException exception) {
-            showError("Could not create the map folder.", exception);
+            showError("Could not create the folder.", exception);
         }
     }
 
     private void createNote() {
         Path folder = selectedFolder();
-        if (folder == null || folder.equals(storageRoot)) {
-            JOptionPane.showMessageDialog(this, "Select or create a map folder first.",
-                    "No map selected", JOptionPane.INFORMATION_MESSAGE);
+        if (folder == null) {
+            JOptionPane.showMessageDialog(this, "Select a folder first.",
+                    "No folder selected", JOptionPane.INFORMATION_MESSAGE);
             return;
         }
         String name = askName("New note", "Note name:");
@@ -291,7 +349,7 @@ public final class NotesPanel extends JPanel {
 
     private void renameSelection() {
         Entry entry = selectedEntry();
-        if (entry == null || entry.path == null) return;
+        if (entry == null || entry.path == null || entry.path.equals(storageRoot)) return;
         String name = askName("Rename", "New name:", entry.name);
         if (name == null) return;
         saveCurrent();
@@ -313,7 +371,7 @@ public final class NotesPanel extends JPanel {
 
     private void deleteSelection() {
         Entry entry = selectedEntry();
-        if (entry == null || entry.path == null) return;
+        if (entry == null || entry.path == null || entry.path.equals(storageRoot)) return;
         int choice = JOptionPane.showConfirmDialog(this,
                 "Delete \"" + entry.name + "\"? This cannot be undone.",
                 "Delete item", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
@@ -340,23 +398,33 @@ public final class NotesPanel extends JPanel {
 
     private void reloadTree(Path select) {
         rootNode.removeAllChildren();
-        try (var folders = Files.list(storageRoot)) {
-            folders.filter(Files::isDirectory).sorted().forEach(folder -> {
-                DefaultMutableTreeNode mapNode = new DefaultMutableTreeNode(
-                        new Entry(folder.getFileName().toString(), folder, true));
-                try (var notes = Files.list(folder)) {
-                    notes.filter(path -> path.getFileName().toString().endsWith(".html")).sorted()
-                            .forEach(note -> mapNode.add(new DefaultMutableTreeNode(new Entry(
-                                    stripExtension(note.getFileName().toString()), note, false))));
-                } catch (IOException ignored) { }
-                rootNode.add(mapNode);
-            });
-        } catch (IOException exception) {
-            showError("Could not load map notes.", exception);
-        }
+        loadChildren(rootNode, storageRoot);
         treeModel.reload();
         for (int row = 0; row < tree.getRowCount(); row++) tree.expandRow(row);
         if (select != null) selectPath(rootNode, select);
+    }
+
+    private void loadChildren(DefaultMutableTreeNode parentNode, Path folder) {
+        try (var children = Files.list(folder)) {
+            children.sorted((first, second) -> {
+                boolean firstFolder = Files.isDirectory(first);
+                boolean secondFolder = Files.isDirectory(second);
+                if (firstFolder != secondFolder) return firstFolder ? -1 : 1;
+                return first.getFileName().toString().compareToIgnoreCase(second.getFileName().toString());
+            }).forEach(path -> {
+                if (Files.isDirectory(path)) {
+                    DefaultMutableTreeNode folderNode = new DefaultMutableTreeNode(
+                            new Entry(path.getFileName().toString(), path, true));
+                    loadChildren(folderNode, path);
+                    parentNode.add(folderNode);
+                } else if (path.getFileName().toString().endsWith(".html")) {
+                    parentNode.add(new DefaultMutableTreeNode(new Entry(
+                            stripExtension(path.getFileName().toString()), path, false)));
+                }
+            });
+        } catch (IOException exception) {
+            showError("Could not load notes.", exception);
+        }
     }
 
     private boolean selectPath(DefaultMutableTreeNode node, Path path) {
@@ -404,6 +472,17 @@ public final class NotesPanel extends JPanel {
     private void initializeStorage() {
         try {
             Files.createDirectories(storageRoot);
+            Path mapsFolder = storageRoot.resolve("Maps");
+            if (!Files.exists(mapsFolder)) {
+                Files.createDirectories(mapsFolder);
+                try (var existing = Files.list(storageRoot)) {
+                    for (Path path : existing.toList()) {
+                        if (Files.isDirectory(path) && !path.equals(mapsFolder)) {
+                            Files.move(path, mapsFolder.resolve(path.getFileName()));
+                        }
+                    }
+                }
+            }
         } catch (IOException exception) {
             showError("Could not initialize map notes.", exception);
         }
@@ -436,5 +515,24 @@ public final class NotesPanel extends JPanel {
 
     private static final class DeleteFailure extends RuntimeException {
         DeleteFailure(IOException cause) { super(cause); }
+    }
+
+    private static final class ColorCircleIcon implements Icon {
+        @Override public int getIconWidth() { return 14; }
+        @Override public int getIconHeight() { return 14; }
+
+        @Override public void paintIcon(java.awt.Component component, Graphics graphics, int x, int y) {
+            Graphics2D g = (Graphics2D) graphics.create();
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g.setColor(new Color(245, 90, 90));
+            g.fillArc(x + 1, y + 1, 12, 12, 0, 120);
+            g.setColor(new Color(90, 205, 130));
+            g.fillArc(x + 1, y + 1, 12, 12, 120, 120);
+            g.setColor(new Color(66, 145, 235));
+            g.fillArc(x + 1, y + 1, 12, 12, 240, 120);
+            g.setColor(AssistantTheme.TEXT);
+            g.drawOval(x + 1, y + 1, 12, 12);
+            g.dispose();
+        }
     }
 }

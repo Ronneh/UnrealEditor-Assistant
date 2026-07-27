@@ -36,9 +36,9 @@ public final class WeatherPanel extends JPanel {
     private final JTextField cityField = new JTextField(SETTINGS.get("weather.city", "Berlin"), 10);
     private final JButton unitButton = new JButton("°C");
     private final JLabel title = new JLabel();
-    private final JLabel current = new JLabel("Loading weather...");
+    private final JLabel current = new JLabel(localized("Loading weather...", "Wetter wird geladen..."));
     private final JLabel condition = new JLabel(" ");
-    private final JLabel status = new JLabel("Weather data: Open-Meteo");
+    private final JLabel status = new JLabel(localized("Weather data: Open-Meteo", "Wetterdaten: Open-Meteo"));
     private final ForecastGraph graph = new ForecastGraph();
     private final JPanel days = new JPanel(new GridLayout(1, 7, 4, 0));
     private final JPanel cityEditor = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
@@ -50,17 +50,19 @@ public final class WeatherPanel extends JPanel {
         super(new BorderLayout(6, 3));
         setOpaque(false);
         setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
-        setPreferredSize(new Dimension(480, 190));
+        setPreferredSize(new Dimension(520, 190));
 
-        JPanel header = new JPanel(new BorderLayout(8, 0));
+        JPanel header = new JPanel(new BorderLayout(0, 2));
         header.setOpaque(false);
+        JPanel headerTop = new JPanel(new BorderLayout(8, 0));
+        headerTop.setOpaque(false);
         JPanel location = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         location.setOpaque(false);
         title.setText(weatherTitle(cityField.getText()));
-        JButton edit = new JButton("✎");
-        edit.setMargin(new java.awt.Insets(2, 6, 2, 6));
+        JButton edit = new JButton(new PencilIcon());
+        edit.setMargin(new java.awt.Insets(2, 5, 2, 5));
         edit.setPreferredSize(new Dimension(30, 24));
-        edit.setToolTipText("Change city");
+        edit.setToolTipText(localized("Change city", "Stadt ändern"));
         edit.addActionListener(event -> {
             cityEditor.setVisible(!cityEditor.isVisible());
             if (cityEditor.isVisible()) {
@@ -71,7 +73,7 @@ public final class WeatherPanel extends JPanel {
         });
         cityEditor.setOpaque(false);
         cityEditor.setVisible(false);
-        JButton save = new JButton("Save");
+        JButton save = new JButton(localized("Save", "Speichern"));
         save.addActionListener(event -> saveCity());
         cityField.addActionListener(event -> saveCity());
         cityEditor.add(cityField);
@@ -84,13 +86,12 @@ public final class WeatherPanel extends JPanel {
         location.add(title);
         location.add(edit);
         location.add(cityEditor);
-        header.add(location, BorderLayout.WEST);
-        JPanel headerDetails = new JPanel(new FlowLayout(FlowLayout.RIGHT, 7, 0));
-        headerDetails.setOpaque(false);
+        headerTop.add(location, BorderLayout.CENTER);
+        headerTop.add(unitButton, BorderLayout.EAST);
+        header.add(headerTop, BorderLayout.NORTH);
         condition.setForeground(AssistantTheme.MUTED);
-        headerDetails.add(condition);
-        headerDetails.add(unitButton);
-        header.add(headerDetails, BorderLayout.EAST);
+        condition.setHorizontalAlignment(JLabel.RIGHT);
+        header.add(condition, BorderLayout.SOUTH);
         add(header, BorderLayout.NORTH);
 
         JPanel center = new JPanel(new BorderLayout(10, 0));
@@ -126,14 +127,15 @@ public final class WeatherPanel extends JPanel {
     }
 
     private static String weatherTitle(String city) {
-        return "<html>Weather in <b>" + city.replace("&", "&amp;").replace("<", "&lt;") + "</b></html>";
+        return "<html>" + localized("Weather in ", "Wetter in ") + "<b>"
+                + city.replace("&", "&amp;").replace("<", "&lt;") + "</b></html>";
     }
 
     private void refresh() {
         String requestedCity = cityField.getText().trim();
         if (requestedCity.isEmpty()) return;
         status.setForeground(AssistantTheme.MUTED);
-        status.setText("Loading forecast...");
+        status.setText(localized("Loading forecast...", "Vorhersage wird geladen..."));
         Thread worker = new Thread(() -> load(requestedCity), "weather-loader");
         worker.setDaemon(true);
         worker.start();
@@ -175,13 +177,15 @@ public final class WeatherPanel extends JPanel {
                 title.setText(weatherTitle(requestedCity));
                 selectedDay = 0;
                 status.setForeground(AssistantTheme.MUTED);
-                status.setText("Weather data: Open-Meteo");
+                status.setText(localized("Weather data: Open-Meteo", "Wetterdaten: Open-Meteo"));
                 updateView();
             });
         } catch (Exception exception) {
             SwingUtilities.invokeLater(() -> {
                 status.setForeground(new Color(225, 105, 105));
-                status.setText("Weather is currently unavailable. Check the city or connection.");
+                status.setText(localized(
+                        "Weather is currently unavailable. Check the city or connection.",
+                        "Wetter ist derzeit nicht verfügbar. Bitte Stadt oder Verbindung prüfen."));
                 current.setText("—");
                 condition.setText(requestedCity);
             });
@@ -205,8 +209,9 @@ public final class WeatherPanel extends JPanel {
         int statusCode = selectedDay == 0 ? data.currentCode : data.hourlyCodes[statusIndex];
         int humidity = selectedDay == 0 ? data.humidity : (int) Math.round(data.hourlyHumidity[statusIndex]);
         long wind = Math.round(selectedDay == 0 ? data.wind : data.hourlyWind[statusIndex]);
-        condition.setText(description(statusCode) + " · Humidity " + humidity
-                + "% · Wind " + wind + " km/h");
+        condition.setText(description(statusCode) + " · "
+                + localized("Humidity ", "Luftfeuchtigkeit ") + humidity
+                + "% · " + localized("Wind ", "Wind ") + wind + " km/h");
         days.removeAll();
         for (int i = 0; i < Math.min(7, data.dates.length); i++) {
             final int day = i;
@@ -264,12 +269,34 @@ public final class WeatherPanel extends JPanel {
     }
 
     private static String description(int code) {
-        if (code == 0) return "Clear";
-        if (code <= 2) return "Partly cloudy";
-        if (code <= 48) return "Cloudy";
-        if (code <= 67 || code >= 80 && code <= 82) return "Rain";
-        if (code <= 77 || code >= 85 && code <= 86) return "Snow";
-        return "Thunderstorm";
+        if (code == 0) return localized("Clear", "Klar");
+        if (code <= 2) return localized("Partly cloudy", "Teilweise bewölkt");
+        if (code <= 48) return localized("Cloudy", "Bewölkt");
+        if (code <= 67 || code >= 80 && code <= 82) return localized("Rain", "Regen");
+        if (code <= 77 || code >= 85 && code <= 86) return localized("Snow", "Schnee");
+        return localized("Thunderstorm", "Gewitter");
+    }
+
+    private static String localized(String english, String german) {
+        return "de".equalsIgnoreCase(AssistantTheme.USER_LOCALE.getLanguage()) ? german : english;
+    }
+
+    private static final class PencilIcon implements Icon {
+        @Override public int getIconWidth() { return 14; }
+        @Override public int getIconHeight() { return 14; }
+
+        @Override public void paintIcon(java.awt.Component component, Graphics graphics, int x, int y) {
+            Graphics2D g = (Graphics2D) graphics.create();
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g.setStroke(new BasicStroke(3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g.setColor(AssistantTheme.TEXT);
+            g.drawLine(x + 3, y + 11, x + 11, y + 3);
+            g.setStroke(new BasicStroke(1.2f));
+            g.drawLine(x + 2, y + 12, x + 5, y + 11);
+            g.setColor(AssistantTheme.ACCENT);
+            g.drawLine(x + 10, y + 2, x + 12, y + 4);
+            g.dispose();
+        }
     }
 
     /** Font-independent colored weather symbols rendered directly with Java2D. */
@@ -323,7 +350,7 @@ public final class WeatherPanel extends JPanel {
             }
             if (snow) {
                 g.setColor(new Color(210, 239, 255));
-                g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+                g.setFont(new Font("Verdana", Font.BOLD, 12));
                 g.drawString("*", 8, 23);
                 g.drawString("*", 18, 23);
             }
@@ -402,12 +429,17 @@ public final class WeatherPanel extends JPanel {
                 g.drawString(time, textX, getHeight() - 2);
             }
             g.setFont(g.getFont().deriveFont(Font.BOLD, 9f));
-            for (int hour = 0; hour < 24; hour += 4) {
-                int x = 8 + hour * (getWidth() - 16) / 23;
-                int y = 18 + (int) ((max - data.hourly[start + hour]) / Math.max(1, max - min) * (getHeight() - 40));
+            for (int hour = 0; hour <= 24; hour += 4) {
+                int sampleHour = Math.min(hour, 23);
+                int x = 8 + hour * (getWidth() - 16) / 24;
+                int y = 18 + (int) ((max - data.hourly[start + sampleHour])
+                        / Math.max(1, max - min) * (getHeight() - 40));
                 String value = Long.toString(Math.round(fahrenheit
-                        ? data.hourly[start + hour] * 9 / 5 + 32 : data.hourly[start + hour]));
-                g.drawString(value, x - g.getFontMetrics().stringWidth(value) / 2, Math.max(9, y - 4));
+                        ? data.hourly[start + sampleHour] * 9 / 5 + 32
+                        : data.hourly[start + sampleHour]));
+                int valueWidth = g.getFontMetrics().stringWidth(value);
+                int valueX = Math.max(0, Math.min(getWidth() - valueWidth, x - valueWidth / 2));
+                g.drawString(value, valueX, Math.max(9, y - 4));
             }
             g.dispose();
         }

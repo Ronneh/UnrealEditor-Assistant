@@ -17,7 +17,9 @@ maps and requires no installation.
   Unreal-friendly PNG or copy it to the clipboard.
 - **Screenshot Maker** — load or paste four level screenshots, choose each
   square crop, arrange the 2×2 composition, add styled labels using installed
-  fonts, and export the finished PNG at up to 4096×4096.
+  fonts, and export the finished screenshot.
+- **Scripting** — learn and write UnrealScript with BunnyTrack-oriented trigger,
+  launch-pad, timer, event and mutator examples, then compile packages with UCC.
 
 ## Requirements
 
