@@ -33,6 +33,7 @@ import javax.swing.JSlider;
 import javax.swing.SwingConstants;
 import javax.swing.KeyStroke;
 import javax.swing.TransferHandler;
+import javax.swing.Timer;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 /** Embedded image resizing and color-adjustment utility. */
@@ -46,6 +47,7 @@ public final class ImageResizerPanel extends JPanel {
     private final JSlider saturation = slider();
     private final JSlider hue = slider();
     private final JSlider sharpness = slider();
+    private final Timer adjustmentTimer = new Timer(120, event -> refresh());
     private BufferedImage original;
     private BufferedImage processed;
 
@@ -53,6 +55,7 @@ public final class ImageResizerPanel extends JPanel {
         super(new BorderLayout(16, 16));
         setBackground(AssistantTheme.BACKGROUND);
         setBorder(BorderFactory.createEmptyBorder(18, 22, 20, 22));
+        adjustmentTimer.setRepeats(false);
 
         JLabel heading = new JLabel("Image Resizer");
         heading.setFont(heading.getFont().deriveFont(java.awt.Font.BOLD, 23f));
@@ -126,8 +129,8 @@ public final class ImageResizerPanel extends JPanel {
         outputButtons.add(save);
         outputButtons.add(copy);
         controls.add(outputButtons, BorderLayout.SOUTH);
-        size.addActionListener(event -> refresh());
-        javax.swing.event.ChangeListener listener = event -> refresh();
+        size.addActionListener(event -> scheduleRefresh());
+        javax.swing.event.ChangeListener listener = event -> scheduleRefresh();
         brightness.addChangeListener(listener);
         contrast.addChangeListener(listener);
         saturation.addChangeListener(listener);
@@ -156,23 +159,15 @@ public final class ImageResizerPanel extends JPanel {
         JFileChooser chooser = new JFileChooser();
         chooser.setFileFilter(new FileNameExtensionFilter("Images (PNG, JPG, BMP, GIF)", "png", "jpg", "jpeg", "bmp", "gif"));
         if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return;
-        try {
-            BufferedImage loaded = ImageIO.read(chooser.getSelectedFile());
-            if (loaded == null) throw new IllegalArgumentException("Unsupported image format.");
-            setImage(loaded);
-        } catch (Exception exception) {
-            showError("Could not open image", exception);
-        }
+        details.setText("Loading image...");
+        AsyncImageIO.load(chooser.getSelectedFile(), this::setImage,
+                exception -> showError("Could not open image", exception));
     }
 
     private void pasteImage(ActionEvent ignored) {
-        try {
-            Object value = java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().getData(DataFlavor.imageFlavor);
-            if (!(value instanceof Image image)) throw new IllegalArgumentException("The clipboard does not contain an image.");
-            setImage(ImageToolSupport.toBuffered(image));
-        } catch (Exception exception) {
-            showError("Could not paste image", exception);
-        }
+        ClipboardImageSupport.paste(
+                this::setImage,
+                exception -> showError("Could not paste image", exception));
     }
 
     private void setImage(BufferedImage image) {
@@ -207,7 +202,12 @@ public final class ImageResizerPanel extends JPanel {
         saturation.setValue(0);
         hue.setValue(0);
         sharpness.setValue(0);
+        adjustmentTimer.stop();
         refresh();
+    }
+
+    private void scheduleRefresh() {
+        adjustmentTimer.restart();
     }
 
     private void refresh() {
@@ -276,10 +276,13 @@ public final class ImageResizerPanel extends JPanel {
         if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
         File file=chooser.getSelectedFile();
         if (!file.getName().toLowerCase().endsWith(".png")) file=new File(file.getParentFile(),file.getName()+".png");
-        try {
-            ImageIO.write(processed,"png",file);
-            details.setText("Saved " + file.getAbsolutePath());
-        } catch (Exception exception) { showError("Could not save PNG",exception); }
+        if (!FileSaveSupport.confirmOverwrite(this, file)) return;
+        File targetFile = file;
+        BufferedImage image = processed;
+        details.setText("Saving " + targetFile.getName() + "...");
+        AsyncImageIO.savePng(image, targetFile,
+                () -> details.setText("Saved " + targetFile.getAbsolutePath()),
+                exception -> showError("Could not save PNG", exception));
     }
 
     private void copyImage(ActionEvent ignored) {
@@ -298,7 +301,7 @@ public final class ImageResizerPanel extends JPanel {
 
     private final class Preview extends JPanel {
         Preview() {
-            setBackground(new Color(13,16,21));
+            setBackground(AssistantTheme.CODE_BACKGROUND);
             setBorder(BorderFactory.createLineBorder(AssistantTheme.BORDER));
         }
         @Override protected void paintComponent(Graphics graphics) {
@@ -338,9 +341,9 @@ public final class ImageResizerPanel extends JPanel {
                 List<File> files = (List<File>) support.getTransferable()
                         .getTransferData(DataFlavor.javaFileListFlavor);
                 if (files.isEmpty()) return false;
-                BufferedImage image = ImageIO.read(files.get(0));
-                if (image == null) throw new IllegalArgumentException("Unsupported image format.");
-                setImage(image);
+                details.setText("Loading image...");
+                AsyncImageIO.load(files.get(0), ImageResizerPanel.this::setImage,
+                        exception -> showError("Could not import dropped image", exception));
                 return true;
             } catch (Exception exception) {
                 showError("Could not import dropped image", exception);

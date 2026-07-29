@@ -101,26 +101,18 @@ public final class SeamlessTexturePanel extends JPanel {
         chooser.setFileFilter(new FileNameExtensionFilter(
                 "Images (PNG, JPG, BMP)", "png", "jpg", "jpeg", "bmp"));
         if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return;
-        try {
-            BufferedImage image = ImageIO.read(chooser.getSelectedFile());
-            if (image == null) throw new IllegalArgumentException("Unsupported image format.");
-            setSource(image, chooser.getSelectedFile().getName());
-        } catch (Exception exception) {
-            showInputError("The selected file could not be loaded.");
-        }
+        File file = chooser.getSelectedFile();
+        status.setForeground(AssistantTheme.MUTED);
+        status.setText("Loading " + file.getName() + "...");
+        AsyncImageIO.load(file,
+                image -> setSource(image, file.getName()),
+                exception -> showInputError("The selected file could not be loaded."));
     }
 
     private void pasteImage() {
-        try {
-            Object value = Toolkit.getDefaultToolkit().getSystemClipboard().getData(DataFlavor.imageFlavor);
-            if (!(value instanceof Image image)) {
-                showInputError("The clipboard does not contain a supported image.");
-                return;
-            }
-            setSource(ImageToolSupport.toBuffered(image), "clipboard");
-        } catch (Exception exception) {
-            showInputError("The clipboard does not contain a supported image.");
-        }
+        ClipboardImageSupport.paste(
+                image -> setSource(image, "clipboard"),
+                exception -> showInputError("The clipboard does not contain a supported image."));
     }
 
     private void setSource(BufferedImage image, String origin) {
@@ -205,14 +197,16 @@ public final class SeamlessTexturePanel extends JPanel {
         File file = chooser.getSelectedFile();
         if (!file.getName().toLowerCase().endsWith(".png"))
             file = new File(file.getParentFile(), file.getName() + ".png");
-        try {
-            ImageIO.write(result, "png", file);
+        if (!FileSaveSupport.confirmOverwrite(this, file)) return;
+        File targetFile = file;
+        BufferedImage image = result;
+        status.setForeground(AssistantTheme.MUTED);
+        status.setText("Saving " + targetFile.getName() + "...");
+        AsyncImageIO.savePng(image, targetFile, () -> {
             status.setForeground(new Color(94, 205, 130));
-            status.setText("Saved " + file.getName() + ".");
-        } catch (Exception exception) {
-            JOptionPane.showMessageDialog(this, "The PNG could not be saved.",
-                    "Save texture", JOptionPane.ERROR_MESSAGE);
-        }
+            status.setText("Saved " + targetFile.getName() + ".");
+        }, exception -> JOptionPane.showMessageDialog(this, "The PNG could not be saved.",
+                "Save texture", JOptionPane.ERROR_MESSAGE));
     }
 
     private void showInputError(String message) {
@@ -226,7 +220,7 @@ public final class SeamlessTexturePanel extends JPanel {
 
         ImageCanvas(String emptyText) {
             this.emptyText = emptyText;
-            setBackground(new Color(12, 15, 20));
+            setBackground(AssistantTheme.CODE_BACKGROUND);
         }
 
         @Override protected void paintComponent(Graphics graphics) {

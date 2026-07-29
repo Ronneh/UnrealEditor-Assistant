@@ -38,6 +38,7 @@ import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.DefaultListCellRenderer;
+import javax.swing.Icon;
 import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JList;
@@ -160,9 +161,9 @@ public final class ScreenshotMakerPanel extends JPanel {
             shotButtons[i].setHorizontalAlignment(SwingConstants.LEFT);
             shotButtons[i].addActionListener(event -> selectShot(index));
             shotButtons[i].setTransferHandler(fileDropHandler(index));
-            JButton openFolder = new JButton("Open");
+            JButton openFolder = new JButton(new FolderIcon());
             openFolder.setToolTipText("Open an image file for Screenshot " + (i + 1));
-            openFolder.setPreferredSize(new Dimension(58, 32));
+            openFolder.setPreferredSize(new Dimension(42, 32));
             openFolder.setFocusable(false);
             openFolder.addActionListener(event -> loadShot(index));
             JPanel folderPosition = new JPanel(new BorderLayout());
@@ -185,7 +186,9 @@ public final class ScreenshotMakerPanel extends JPanel {
         actions.setOpaque(false);
         JButton replace=new JButton("Replace current...");
         replace.addActionListener(event -> loadShot(activeShot));
-        JButton next=new JButton("Next ->");
+        JButton next=new JButton("Next", new RightArrowIcon());
+        next.setHorizontalTextPosition(SwingConstants.LEFT);
+        next.setIconTextGap(7);
         next.addActionListener(event -> showComposition());
         actions.add(replace);
         actions.add(next);
@@ -347,7 +350,8 @@ public final class ScreenshotMakerPanel extends JPanel {
         opacityRow.add(new JLabel("Opacity:"),BorderLayout.WEST);
         textOpacity.setOpaque(false);
         JLabel opacityValue=new JLabel("100%");
-        opacityValue.setPreferredSize(new Dimension(38,24));
+        opacityValue.setMinimumSize(new Dimension(52,24));
+        opacityValue.setPreferredSize(new Dimension(52,24));
         opacityRow.add(textOpacity,BorderLayout.CENTER);
         opacityRow.add(opacityValue,BorderLayout.EAST);
         textOpacity.addChangeListener(event -> opacityValue.setText(textOpacity.getValue()+"%"));
@@ -395,10 +399,10 @@ public final class ScreenshotMakerPanel extends JPanel {
         settings.add(dividerColor);
         panel.add(settings, c);
         panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 92));
-        centerDividers.addActionListener(event -> composition.repaint());
-        dividersOnTop.addActionListener(event -> composition.repaint());
-        dividerStyle.addActionListener(event -> composition.repaint());
-        dividerWidth.addChangeListener(event -> composition.repaint());
+        centerDividers.addActionListener(event -> composition.invalidatePreview());
+        dividersOnTop.addActionListener(event -> composition.invalidatePreview());
+        dividerStyle.addActionListener(event -> composition.invalidatePreview());
+        dividerWidth.addChangeListener(event -> composition.invalidatePreview());
         dividerWidth.setBorder(fontSize.getBorder());
         dividerWidth.setPreferredSize(new Dimension(76, 28));
         if (dividerWidth.getEditor() instanceof JSpinner.DefaultEditor editor) {
@@ -410,7 +414,7 @@ public final class ScreenshotMakerPanel extends JPanel {
         dividerColor.setToolTipText("Choose divider color");
         dividerColor.addActionListener(event -> {
             chooseColor("Divider", dividerColor);
-            composition.repaint();
+            composition.invalidatePreview();
         });
         return panel;
     }
@@ -461,7 +465,7 @@ public final class ScreenshotMakerPanel extends JPanel {
         label.innerGlowColor=innerGlowColor.getBackground();
         label.satinColor=satinColor.getBackground();
         label.strokeColor=strokeColor.getBackground();
-        composition.repaint();
+        composition.invalidatePreview();
     }
 
     private void styleSpinnerButtons(java.awt.Container container) {
@@ -494,17 +498,16 @@ public final class ScreenshotMakerPanel extends JPanel {
     }
 
     private void loadShotFile(int index, File file, String source) {
-        try {
-            BufferedImage image=ImageIO.read(file);
-            if (image==null) throw new IllegalArgumentException("Unsupported image format.");
+        cropStatus.setForeground(AssistantTheme.MUTED);
+        cropStatus.setText("Loading " + file.getName() + "...");
+        AsyncImageIO.load(file, image -> {
             setShotImage(index, image, source);
             String resolution=image.getWidth()+"x"+image.getHeight();
             if (!isValidResolution(resolution)) {
                 cropStatus.setText("Loaded "+resolution+" — this is outside the recommended resolution list, but can still be used.");
             }
-        } catch (Exception exception) {
-            JOptionPane.showMessageDialog(this,exception.getMessage(),"Could not load screenshot",JOptionPane.ERROR_MESSAGE);
-        }
+        }, exception -> JOptionPane.showMessageDialog(this, exception.getMessage(),
+                "Could not load screenshot", JOptionPane.ERROR_MESSAGE));
     }
 
     private void installFileDrop() {
@@ -553,17 +556,12 @@ public final class ScreenshotMakerPanel extends JPanel {
     }
 
     private void pasteShot(int index) {
-        try {
-            Object clipboardValue = Toolkit.getDefaultToolkit().getSystemClipboard()
-                    .getData(DataFlavor.imageFlavor);
-            if (!(clipboardValue instanceof Image image)) {
-                throw new IllegalArgumentException("The clipboard does not contain an image.");
-            }
-            setShotImage(index, ImageToolSupport.toBuffered(image), "clipboard");
-        } catch (Exception exception) {
-            cropStatus.setForeground(new Color(225, 105, 105));
-            cropStatus.setText("The clipboard content is not a supported image.");
-        }
+        ClipboardImageSupport.paste(
+                image -> setShotImage(index, image, "clipboard"),
+                exception -> {
+                    cropStatus.setForeground(new Color(225, 105, 105));
+                    cropStatus.setText("The clipboard content is not a supported image.");
+                });
     }
 
     private void setShotImage(int index, BufferedImage image, String source) {
@@ -637,7 +635,7 @@ public final class ScreenshotMakerPanel extends JPanel {
                 outerGlowColor.getBackground(),innerGlowColor.getBackground(),
                 satinColor.getBackground(),strokeColor.getBackground()));
         composition.selectedLabel=composition.labels.size()-1;
-        composition.repaint();
+        composition.invalidatePreview();
     }
 
     private void exportComposition() {
@@ -654,11 +652,12 @@ public final class ScreenshotMakerPanel extends JPanel {
         if (chooser.showSaveDialog(this)!=JFileChooser.APPROVE_OPTION) return;
         File file=chooser.getSelectedFile();
         if (!file.getName().toLowerCase().endsWith(".png")) file=new File(file.getParentFile(),file.getName()+".png");
-        try {
-            ImageIO.write(composition.renderOutput(exportSize,false),"png",file);
-        } catch (Exception exception) {
-            JOptionPane.showMessageDialog(this,exception.getMessage(),"Could not export PNG",JOptionPane.ERROR_MESSAGE);
-        }
+        if (!FileSaveSupport.confirmOverwrite(this, file)) return;
+        File targetFile = file;
+        BufferedImage export = composition.renderOutput(exportSize, false);
+        AsyncImageIO.savePng(export, targetFile, () -> { },
+                exception -> JOptionPane.showMessageDialog(this, exception.getMessage(),
+                        "Could not export PNG", JOptionPane.ERROR_MESSAGE));
     }
 
     private final class CropCanvas extends JPanel {
@@ -666,7 +665,7 @@ public final class ScreenshotMakerPanel extends JPanel {
         private Rectangle displayedCrop=new Rectangle();
         private Point dragOffset;
         CropCanvas() {
-            setBackground(new Color(12,15,20));
+            setBackground(AssistantTheme.CODE_BACKGROUND);
             setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
             MouseAdapter mouse=new MouseAdapter() {
                 @Override public void mousePressed(MouseEvent e) {
@@ -735,8 +734,10 @@ public final class ScreenshotMakerPanel extends JPanel {
         private Point pressPoint;
         private boolean dragged;
         private Rectangle outputBounds=new Rectangle();
+        private BufferedImage previewCache;
+        private int previewCacheSize = -1;
         CompositionCanvas() {
-            setBackground(new Color(12,15,20));
+            setBackground(AssistantTheme.CODE_BACKGROUND);
             setFocusable(true);
             getInputMap(JComponent.WHEN_FOCUSED)
                     .put(KeyStroke.getKeyStroke("DELETE"), "removeSelectedLabel");
@@ -759,7 +760,7 @@ public final class ScreenshotMakerPanel extends JPanel {
                     } else {
                         dragCell=cellAt(output);
                     }
-                    repaint();
+                    invalidatePreview();
                 }
                 @Override public void mouseDragged(MouseEvent e) {
                     if (pressPoint != null && pressPoint.distance(e.getPoint()) > 4) dragged=true;
@@ -771,7 +772,7 @@ public final class ScreenshotMakerPanel extends JPanel {
                     TextLabel label=labels.get(selectedLabel);
                     label.x=Math.max(0,Math.min(OUTPUT_SIZE,output.x-dragOffset.x));
                     label.y=Math.max(0,Math.min(OUTPUT_SIZE,output.y-dragOffset.y));
-                    repaint();
+                    invalidatePreview();
                 }
                 @Override public void mouseReleased(MouseEvent e) {
                     if (dragCell>=0) {
@@ -791,7 +792,7 @@ public final class ScreenshotMakerPanel extends JPanel {
                     dragCell=-1;
                     dragOffset=null;
                     pressPoint=null;
-                    repaint();
+                    invalidatePreview();
                 }
             };
             addMouseListener(mouse);
@@ -803,12 +804,24 @@ public final class ScreenshotMakerPanel extends JPanel {
                 BufferedImage crop=shot.image.getSubimage(shot.crop.x,shot.crop.y,shot.crop.width,shot.crop.height);
                 cells.add(crop);
             }
-            repaint();
+            invalidatePreview();
         }
         void removeSelectedLabel() {
             if (selectedLabel>=0 && selectedLabel<labels.size()) labels.remove(selectedLabel);
             selectedLabel=-1;
+            invalidatePreview();
+        }
+        void invalidatePreview() {
+            previewCache = null;
+            previewCacheSize = -1;
             repaint();
+        }
+        private BufferedImage previewOutput(int targetSize) {
+            if (previewCache == null || previewCacheSize != targetSize) {
+                previewCache = renderOutput(targetSize, true);
+                previewCacheSize = targetSize;
+            }
+            return previewCache;
         }
         private int cellAt(Point p) {
             if (p.x<0||p.y<0||p.x>=OUTPUT_SIZE||p.y>=OUTPUT_SIZE) return -1;
@@ -1005,7 +1018,7 @@ public final class ScreenshotMakerPanel extends JPanel {
             int side=Math.min(getWidth()-24,getHeight()-24);
             if (side <= 0) return;
             outputBounds.setBounds((getWidth()-side)/2,(getHeight()-side)/2,side,side);
-            BufferedImage output=renderOutput(side,true);
+            BufferedImage output=previewOutput(side);
             Graphics2D g=(Graphics2D)graphics.create();
             g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,RenderingHints.VALUE_INTERPOLATION_BILINEAR);
             g.drawImage(output,outputBounds.x,outputBounds.y,null);
@@ -1055,6 +1068,41 @@ public final class ScreenshotMakerPanel extends JPanel {
                 label.setForeground(AssistantTheme.TEXT);
             }
             return label;
+        }
+    }
+
+    private static final class FolderIcon implements Icon {
+        @Override public int getIconWidth() { return 18; }
+        @Override public int getIconHeight() { return 14; }
+
+        @Override public void paintIcon(java.awt.Component component, Graphics graphics, int x, int y) {
+            Graphics2D g = (Graphics2D) graphics.create();
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g.setColor(new Color(224, 169, 66));
+            g.fillRoundRect(x, y + 3, 18, 11, 2, 2);
+            g.fillRoundRect(x + 1, y, 8, 6, 2, 2);
+            g.setColor(new Color(255, 205, 105));
+            g.fillRoundRect(x + 1, y + 5, 16, 8, 2, 2);
+            g.setColor(new Color(137, 97, 35));
+            g.drawRoundRect(x, y + 3, 17, 10, 2, 2);
+            g.dispose();
+        }
+    }
+
+    private static final class RightArrowIcon implements Icon {
+        @Override public int getIconWidth() { return 16; }
+        @Override public int getIconHeight() { return 12; }
+
+        @Override public void paintIcon(java.awt.Component component, Graphics graphics, int x, int y) {
+            Graphics2D g = (Graphics2D) graphics.create();
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g.setColor(component.isEnabled() ? AssistantTheme.TEXT : AssistantTheme.MUTED);
+            g.setStroke(new BasicStroke(1.8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            int centerY = y + getIconHeight() / 2;
+            g.drawLine(x + 1, centerY, x + 13, centerY);
+            g.drawLine(x + 9, y + 2, x + 14, centerY);
+            g.drawLine(x + 14, centerY, x + 9, y + 10);
+            g.dispose();
         }
     }
 }

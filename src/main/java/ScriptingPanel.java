@@ -71,7 +71,7 @@ public final class ScriptingPanel extends JPanel {
         editor.setFont(new Font("Verdana", Font.PLAIN, 14));
         editor.setTabSize(4);
         editor.setLineWrap(false);
-        editor.setBackground(new Color(17, 21, 27));
+        editor.setBackground(AssistantTheme.CODE_BACKGROUND);
         editor.setForeground(AssistantTheme.TEXT);
         editor.setCaretColor(AssistantTheme.TEXT);
         editor.setSelectionColor(AssistantTheme.ACCENT_DARK);
@@ -81,12 +81,12 @@ public final class ScriptingPanel extends JPanel {
         });
         advice.setContentType("text/html");
         advice.setEditable(false);
-        advice.setBackground(new Color(17, 21, 27));
+        advice.setBackground(AssistantTheme.CODE_BACKGROUND);
         configureHtmlPane(learning);
         configureHtmlPane(reference);
         compilerOutput.setEditable(false);
         compilerOutput.setFont(new Font("Verdana", Font.PLAIN, 12));
-        compilerOutput.setBackground(new Color(13, 17, 22));
+        compilerOutput.setBackground(AssistantTheme.CODE_BACKGROUND);
         compilerOutput.setForeground(AssistantTheme.TEXT);
     }
 
@@ -138,6 +138,15 @@ public final class ScriptingPanel extends JPanel {
         assistantTabs.addTab("Learn", createLearningPanel());
         assistantTabs.addTab("Reference", new JScrollPane(reference));
         assistantTabs.addTab("Compiler output", new JScrollPane(compilerOutput));
+        assistantTabs.setBackground(AssistantTheme.PANEL);
+        assistantTabs.setForeground(AssistantTheme.TEXT);
+        assistantTabs.setBackgroundAt(assistantTabs.getSelectedIndex(), AssistantTheme.CODE_BACKGROUND);
+        assistantTabs.addChangeListener(event -> {
+            for (int index = 0; index < assistantTabs.getTabCount(); index++) {
+                assistantTabs.setBackgroundAt(index, index == assistantTabs.getSelectedIndex()
+                        ? AssistantTheme.CODE_BACKGROUND : AssistantTheme.PANEL);
+            }
+        });
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, source, assistantTabs);
         split.setResizeWeight(0.65);
         AssistantTheme.styleSplitPane(split);
@@ -147,12 +156,12 @@ public final class ScriptingPanel extends JPanel {
     private void configureHtmlPane(JTextPane pane) {
         pane.setContentType("text/html");
         pane.setEditable(false);
-        pane.setBackground(new Color(17, 21, 27));
+        pane.setBackground(AssistantTheme.CODE_BACKGROUND);
     }
 
     private JPanel createLearningPanel() {
         JPanel panel = new JPanel(new BorderLayout(0, 5));
-        panel.setBackground(new Color(17, 21, 27));
+        panel.setBackground(AssistantTheme.CODE_BACKGROUND);
         JComboBox<String> lessons = new JComboBox<>(UnrealScriptLearning.LESSONS);
         lessons.addActionListener(event -> showLesson((String) lessons.getSelectedItem()));
         JPanel selector = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
@@ -234,7 +243,7 @@ public final class ScriptingPanel extends JPanel {
     }
 
     private boolean save() {
-        return currentFile == null ? saveAs() : writeFile();
+        return currentFile == null ? saveAs() : writeFile(currentFile);
     }
 
     private boolean saveAs() {
@@ -245,13 +254,14 @@ public final class ScriptingPanel extends JPanel {
         File file = chooser.getSelectedFile();
         if (!file.getName().toLowerCase(Locale.ROOT).endsWith(".uc"))
             file = new File(file.getParentFile(), file.getName() + ".uc");
-        currentFile = file.toPath();
-        return writeFile();
+        if (!FileSaveSupport.confirmOverwrite(this, file)) return false;
+        return writeFile(file.toPath());
     }
 
-    private boolean writeFile() {
+    private boolean writeFile(Path targetFile) {
         try {
-            Files.writeString(currentFile, editor.getText(), StandardCharsets.ISO_8859_1);
+            Files.writeString(targetFile, editor.getText(), StandardCharsets.ISO_8859_1);
+            currentFile = targetFile;
             dirty = false;
             updateFileLabel();
             status.setText("Saved " + currentFile.getFileName() + ".");

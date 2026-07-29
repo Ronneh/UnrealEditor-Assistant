@@ -312,7 +312,7 @@ public final class NotesPanel extends JPanel {
     }
 
     private void selectEntry() {
-        saveCurrent();
+        if (!saveCurrent()) return;
         Entry entry = selectedEntry();
         if (entry == null || entry.folder || entry.path == null) {
             selectedNote = null;
@@ -338,12 +338,14 @@ public final class NotesPanel extends JPanel {
         }
     }
 
-    private void saveCurrent() {
-        if (selectedNote == null || loading || !editor.isEnabled()) return;
+    private boolean saveCurrent() {
+        if (selectedNote == null || loading || !editor.isEnabled()) return true;
         try {
             Files.writeString(selectedNote, editor.getText(), StandardCharsets.UTF_8);
+            return true;
         } catch (IOException exception) {
             showError("Could not save the note.", exception);
+            return false;
         }
     }
 
@@ -352,7 +354,7 @@ public final class NotesPanel extends JPanel {
         if (entry == null || entry.path == null || entry.path.equals(storageRoot)) return;
         String name = askName("Rename", "New name:", entry.name);
         if (name == null) return;
-        saveCurrent();
+        if (!saveCurrent()) return;
         String suffix = entry.folder ? "" : ".html";
         Path target = entry.path.resolveSibling(safeName(name) + suffix);
         if (Files.exists(target)) {

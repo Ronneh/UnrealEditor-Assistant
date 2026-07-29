@@ -1,0 +1,137 @@
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.awt.Color;
+import java.awt.Image;
+import java.awt.image.BufferedImage;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.List;
+import javax.swing.JComponent;
+import javax.swing.JTextArea;
+import javax.swing.JTextPane;
+import javax.swing.KeyStroke;
+import org.junit.jupiter.api.Test;
+
+class CoreRegressionTest {
+    @Test
+    void convertsLazilyLoadedClipboardImages() {
+        BufferedImage source = new BufferedImage(8, 6, BufferedImage.TYPE_INT_RGB);
+        Image lazyImage = source.getScaledInstance(4, 3, Image.SCALE_SMOOTH);
+
+        BufferedImage converted = ImageToolSupport.toBuffered(lazyImage);
+
+        assertEquals(4, converted.getWidth());
+        assertEquals(3, converted.getHeight());
+    }
+
+    @Test
+    void doubleMapChangesOnlyEventAndTagValues() {
+        String input = """
+                Begin Actor Class=Mover Name=RedMover
+                    bDamageTriggered=True
+                    MultiSkins(1)=Texture'MyLevel.General.RonLampRed'
+                    Event=OpenRedDoor
+                    Tag=RedTrigger
+                    Begin Brush Name=RedMover
+                        Begin PolyList
+                            Begin Polygon Texture=rclfwl4-RED
+                            End Polygon
+                        End PolyList
+                    End Brush
+                End Actor""";
+
+        String output = MapDoublerPanel.transform(input).output();
+
+        assertTrue(output.contains("Event=OpenblueDoor"));
+        assertTrue(output.contains("Tag=blueTrigger"));
+        assertTrue(output.contains("bDamageTriggered=True"));
+        assertTrue(output.contains("MultiSkins(1)=Texture'MyLevel.General.RonLampRed'"));
+        assertTrue(output.contains("Begin Polygon Texture=rclfwl4-RED"));
+        assertTrue(output.contains("Begin Brush Name=RedMover"));
+        assertFalse(output.contains("bDamageTriggeblue"));
+    }
+
+    @Test
+    void doubleMapLogUsesRequestedCategoryOrder() throws Exception {
+        String input = """
+                Begin Actor Class=SpecialEvent Name=SpecialZ
+                    Event=RedSpecial
+                End Actor
+                Begin Actor Class=Trigger Name=TriggerZ
+                    Event=RedTrigger
+                End Actor
+                Begin Actor Class=Mover Name=MoverZ
+                    Tag=RedMover
+                End Actor
+                Begin Actor Class=PlayerStart Name=PlayerZ
+                    TeamNumber=0
+                End Actor
+                Begin Actor Class=FlagBase Name=FlagZ
+                    Team=0
+                End Actor""";
+        MapDoublerPanel.TransformResult result = MapDoublerPanel.transform(input);
+        MapDoublerPanel panel = new MapDoublerPanel();
+        Method writeLog = MapDoublerPanel.class.getDeclaredMethod("writeLog", List.class, boolean.class);
+        writeLog.setAccessible(true);
+        writeLog.invoke(panel, result.changes(), true);
+        Field logField = MapDoublerPanel.class.getDeclaredField("logArea");
+        logField.setAccessible(true);
+        String log = ((JTextPane) logField.get(panel)).getText();
+
+        assertInOrder(log, "Flags & PlayerStarts:", "Movers:", "Triggers:", "SpecialEvents:");
+    }
+
+    @Test
+    void searchShortcutsAreInstalled() {
+        JTextArea area = new JTextArea("red blue red");
+        TextSearchSupport.install(area, area, "Test");
+
+        assertEquals("findText", shortcut(area, "control F"));
+        assertEquals("findNextText", shortcut(area, "F3"));
+        assertEquals("findPreviousText", shortcut(area, "shift F3"));
+    }
+
+    @Test
+    void generatedCylinderContainsValidBrushEnvelope() {
+        String brush = BrushGeneratorPanel.generateCylinder(
+                "TestBrush", "CSG_Add", 8, 256, 0, 256, true, 32, 0, 0, 0);
+
+        assertTrue(brush.contains("Begin Actor Class=Brush Name=TestBrush"));
+        assertTrue(brush.contains("CsgOper=CSG_Add"));
+        assertTrue(brush.contains("Begin PolyList"));
+        assertTrue(brush.contains("End PolyList"));
+        assertTrue(brush.contains("End Actor"));
+    }
+
+    @Test
+    void seamlessTextureMirrorsBothAxes() {
+        BufferedImage quarter = new BufferedImage(2, 2, BufferedImage.TYPE_INT_ARGB);
+        quarter.setRGB(0, 0, Color.RED.getRGB());
+        quarter.setRGB(1, 0, Color.GREEN.getRGB());
+        quarter.setRGB(0, 1, Color.BLUE.getRGB());
+        quarter.setRGB(1, 1, Color.WHITE.getRGB());
+
+        BufferedImage output = SeamlessTexture.createMirroredTexture(quarter);
+
+        assertEquals(4, output.getWidth());
+        assertEquals(4, output.getHeight());
+        assertEquals(output.getRGB(0, 0), output.getRGB(3, 0));
+        assertEquals(output.getRGB(0, 0), output.getRGB(0, 3));
+        assertEquals(output.getRGB(1, 1), output.getRGB(2, 2));
+    }
+
+    private static Object shortcut(JTextArea area, String keyStroke) {
+        return area.getInputMap(JComponent.WHEN_FOCUSED).get(KeyStroke.getKeyStroke(keyStroke));
+    }
+
+    private static void assertInOrder(String text, String... values) {
+        int previous = -1;
+        for (String value : values) {
+            int current = text.indexOf(value);
+            assertTrue(current > previous, () -> "Wrong order for " + value + " in:\n" + text);
+            previous = current;
+        }
+    }
+}

@@ -10,7 +10,7 @@ import javax.swing.border.Border;
 import javax.swing.plaf.FontUIResource;
 import javax.swing.plaf.basic.BasicSplitPaneUI;
 
-/** Shared colors and Swing defaults for the assistant's dark theme. */
+/** Shared colors and Swing defaults for the dark theme. */
 public final class AssistantTheme {
     /** Locale detected before Swing is switched to its English UI resources. */
     public static final Locale USER_LOCALE = Locale.getDefault();
@@ -18,6 +18,8 @@ public final class AssistantTheme {
     public static final Color HEADER = new Color(25, 31, 41);
     public static final Color PANEL = new Color(30, 36, 46);
     public static final Color PANEL_ALT = new Color(36, 43, 55);
+    public static final Color CODE_BACKGROUND = new Color(12, 15, 20);
+    public static final Color SCROLL_THUMB = new Color(40, 47, 59);
     public static final Color BORDER = new Color(58, 67, 82);
     public static final Color TEXT = new Color(232, 237, 244);
     public static final Color MUTED = new Color(156, 167, 184);
@@ -45,7 +47,7 @@ public final class AssistantTheme {
         UIManager.put("Button.foreground", TEXT);
         UIManager.put("Button.select", ACCENT_DARK);
         UIManager.put("Button.focus", new Color(0, 0, 0, 0));
-        UIManager.put("TextArea.background", new Color(17, 21, 27));
+        UIManager.put("TextArea.background", CODE_BACKGROUND);
         UIManager.put("TextArea.foreground", TEXT);
         UIManager.put("TextArea.caretForeground", TEXT);
         UIManager.put("TextArea.border", BorderFactory.createEmptyBorder());
@@ -59,7 +61,7 @@ public final class AssistantTheme {
         UIManager.put("FormattedTextField.selectionBackground", ACCENT_DARK);
         UIManager.put("FormattedTextField.selectionForeground", TEXT);
         UIManager.put("FormattedTextField.border", BorderFactory.createLineBorder(BORDER));
-        UIManager.put("TextPane.background", new Color(17, 21, 27));
+        UIManager.put("TextPane.background", CODE_BACKGROUND);
         UIManager.put("TextPane.foreground", TEXT);
         UIManager.put("TextPane.border", BorderFactory.createEmptyBorder());
         UIManager.put("EditorPane.border", BorderFactory.createEmptyBorder());
@@ -79,10 +81,14 @@ public final class AssistantTheme {
         UIManager.put("Spinner.editorBorderPainted", false);
         UIManager.put("CheckBox.background", PANEL);
         UIManager.put("CheckBox.foreground", TEXT);
+        UIManager.put("RadioButton.background", PANEL);
+        UIManager.put("RadioButton.foreground", TEXT);
+        UIManager.put("RadioButton.disabledText", MUTED);
+        UIManager.put("RadioButton.select", ACCENT_DARK);
         UIManager.put("ScrollPane.background", PANEL);
         UIManager.put("ScrollPane.border", BorderFactory.createEmptyBorder());
         UIManager.put("ScrollPane.viewportBorder", BorderFactory.createEmptyBorder());
-        UIManager.put("Viewport.background", new Color(17, 21, 27));
+        UIManager.put("Viewport.background", CODE_BACKGROUND);
         UIManager.put("SplitPaneUI", "javax.swing.plaf.basic.BasicSplitPaneUI");
         UIManager.put("SplitPane.background", BORDER);
         UIManager.put("SplitPane.border", BorderFactory.createEmptyBorder());
@@ -94,10 +100,10 @@ public final class AssistantTheme {
         UIManager.put("ScrollBar.foreground", MUTED);
         UIManager.put("ScrollBar.track", new Color(18, 22, 29));
         UIManager.put("ScrollBar.trackHighlight", PANEL_ALT);
-        UIManager.put("ScrollBar.thumb", BORDER);
-        UIManager.put("ScrollBar.thumbDarkShadow", BORDER);
-        UIManager.put("ScrollBar.thumbHighlight", BORDER);
-        UIManager.put("ScrollBar.thumbShadow", BORDER);
+        UIManager.put("ScrollBar.thumb", SCROLL_THUMB);
+        UIManager.put("ScrollBar.thumbDarkShadow", SCROLL_THUMB);
+        UIManager.put("ScrollBar.thumbHighlight", SCROLL_THUMB);
+        UIManager.put("ScrollBar.thumbShadow", SCROLL_THUMB);
         UIManager.put("ScrollBar.buttonBackground", PANEL_ALT);
         UIManager.put("ScrollBar.buttonDarkShadow", BORDER);
         UIManager.put("ScrollBar.buttonHighlight", PANEL_ALT);
@@ -105,6 +111,11 @@ public final class AssistantTheme {
         UIManager.put("ScrollBar.width", 13);
         UIManager.put("TabbedPane.background", PANEL);
         UIManager.put("TabbedPane.foreground", TEXT);
+        UIManager.put("TabbedPane.selected", CODE_BACKGROUND);
+        UIManager.put("TabbedPane.selectedBackground", CODE_BACKGROUND);
+        UIManager.put("TabbedPane.contentAreaColor", CODE_BACKGROUND);
+        UIManager.put("TabbedPane.focus", CODE_BACKGROUND);
+        UIManager.put("TabbedPane.selectHighlight", BORDER);
         UIManager.put("Slider.background", PANEL);
         UIManager.put("Slider.foreground", TEXT);
         UIManager.put("TitledBorder.border", BorderFactory.createLineBorder(BORDER));
