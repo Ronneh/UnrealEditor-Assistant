@@ -129,6 +129,8 @@ public final class BrushOptimizer {
 
         inputArea.setToolTipText("Paste your map code here.");
         outputArea.setEditable(false);
+        TextSearchSupport.install(inputArea, root, "Input Code");
+        TextSearchSupport.install(outputArea, root, "Optimized Result");
 
         JSplitPane codeSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
                 titledScroll("Input Code:", inputArea), titledScroll("Optimized result:", outputArea));
@@ -137,6 +139,7 @@ public final class BrushOptimizer {
 
         logPane.setEditable(false);
         logPane.setFont(new Font("Verdana", Font.PLAIN, 12));
+        logPane.setBackground(AssistantTheme.CODE_BACKGROUND);
         JScrollPane logScroll = new JScrollPane(logPane);
         logScroll.setBorder(AssistantTheme.titled("Log"));
         logScroll.setPreferredSize(new Dimension(950, 150));
@@ -174,6 +177,7 @@ public final class BrushOptimizer {
         JTextArea area = new JTextArea();
         area.setFont(new Font("Verdana", Font.PLAIN, 12));
         area.setLineWrap(false);
+        area.setBackground(AssistantTheme.CODE_BACKGROUND);
         return area;
     }
 

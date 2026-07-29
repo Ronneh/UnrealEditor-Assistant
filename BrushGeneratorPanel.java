@@ -53,6 +53,7 @@ public final class BrushGeneratorPanel extends JPanel {
         add(createHeader(), BorderLayout.NORTH);
         add(createProperties(), BorderLayout.WEST);
         add(createOutput(), BorderLayout.CENTER);
+        TextSearchSupport.install(output, this, "Generated Brush");
         status.setForeground(AssistantTheme.MUTED);
         add(status, BorderLayout.SOUTH);
     }
@@ -63,7 +64,7 @@ public final class BrushGeneratorPanel extends JPanel {
         JLabel title = new JLabel("Cylinder Brush Generator");
         title.setFont(title.getFont().deriveFont(Font.BOLD, 23f));
         header.add(title, BorderLayout.WEST);
-        JLabel description = new JLabel("Generate an on-grid cylinder brush for Unreal Editor.");
+        JLabel description = new JLabel("Generate an on-grid cylinder brush.");
         description.setForeground(AssistantTheme.MUTED);
         header.add(description, BorderLayout.EAST);
         return header;
@@ -119,7 +120,7 @@ public final class BrushGeneratorPanel extends JPanel {
         output.setEditable(false);
         output.setLineWrap(false);
         output.setFont(new Font("Verdana", Font.PLAIN, 12));
-        output.setBackground(new Color(17, 21, 27));
+        output.setBackground(AssistantTheme.CODE_BACKGROUND);
         output.setForeground(AssistantTheme.TEXT);
         JScrollPane scroll = new JScrollPane(output);
         scroll.setBorder(AssistantTheme.titled("Generated Brush"));

@@ -298,7 +298,7 @@ public final class ImageResizerPanel extends JPanel {
 
     private final class Preview extends JPanel {
         Preview() {
-            setBackground(new Color(13,16,21));
+            setBackground(AssistantTheme.CODE_BACKGROUND);
             setBorder(BorderFactory.createLineBorder(AssistantTheme.BORDER));
         }
         @Override protected void paintComponent(Graphics graphics) {

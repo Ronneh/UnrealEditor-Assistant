@@ -666,7 +666,7 @@ public final class ScreenshotMakerPanel extends JPanel {
         private Rectangle displayedCrop=new Rectangle();
         private Point dragOffset;
         CropCanvas() {
-            setBackground(new Color(12,15,20));
+            setBackground(AssistantTheme.CODE_BACKGROUND);
             setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
             MouseAdapter mouse=new MouseAdapter() {
                 @Override public void mousePressed(MouseEvent e) {
@@ -736,7 +736,7 @@ public final class ScreenshotMakerPanel extends JPanel {
         private boolean dragged;
         private Rectangle outputBounds=new Rectangle();
         CompositionCanvas() {
-            setBackground(new Color(12,15,20));
+            setBackground(AssistantTheme.CODE_BACKGROUND);
             setFocusable(true);
             getInputMap(JComponent.WHEN_FOCUSED)
                     .put(KeyStroke.getKeyStroke("DELETE"), "removeSelectedLabel");

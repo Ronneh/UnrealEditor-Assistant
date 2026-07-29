@@ -226,7 +226,7 @@ public final class SeamlessTexturePanel extends JPanel {
 
         ImageCanvas(String emptyText) {
             this.emptyText = emptyText;
-            setBackground(new Color(12, 15, 20));
+            setBackground(AssistantTheme.CODE_BACKGROUND);
         }
 
         @Override protected void paintComponent(Graphics graphics) {

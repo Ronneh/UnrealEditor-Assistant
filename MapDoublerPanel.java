@@ -1,26 +1,36 @@
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Dialog;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Toolkit;
+import java.awt.Window;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.ActionEvent;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.swing.BorderFactory;
+import javax.swing.AbstractAction;
 import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
+import javax.swing.JTextField;
 import javax.swing.JTextPane;
+import javax.swing.KeyStroke;
+import javax.swing.SwingUtilities;
 import javax.swing.BoxLayout;
 import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
@@ -43,6 +53,8 @@ public final class MapDoublerPanel extends JPanel {
             Pattern.compile("^\\s*Team\\s*=", Pattern.CASE_INSENSITIVE);
     private static final Pattern TEAM_ONE =
             Pattern.compile("^\\s*Team\\s*=\\s*1(?:\\s*)$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern EVENT_OR_TAG =
+            Pattern.compile("^(\\s*)(Event|Tag)(\\s*=\\s*)(.*)$", Pattern.CASE_INSENSITIVE);
     private static final Pattern RED_TOKEN =
             Pattern.compile("red", Pattern.CASE_INSENSITIVE);
 
@@ -50,13 +62,142 @@ public final class MapDoublerPanel extends JPanel {
     private final JTextArea outputArea = codeArea();
     private final JTextPane logArea = new JTextPane();
     private final JLabel status = new JLabel("Paste your map code here, then press Analyze and Double map.");
+    private String inputSearchText = "";
+    private JDialog inputSearchDialog;
+    private JTextField inputSearchField;
 
     public MapDoublerPanel() {
         super(new BorderLayout(8, 8));
         setBackground(AssistantTheme.BACKGROUND);
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        installInputSearch();
         add(createControls(), BorderLayout.NORTH);
         add(createWorkspace(), BorderLayout.CENTER);
+    }
+
+    private void installInputSearch() {
+        inputArea.getInputMap(JComponent.WHEN_FOCUSED)
+                .put(KeyStroke.getKeyStroke("control F"), "findInputCode");
+        inputArea.getActionMap().put("findInputCode", new AbstractAction() {
+            @Override public void actionPerformed(ActionEvent event) {
+                showInputSearchDialog();
+            }
+        });
+
+        inputArea.getInputMap(JComponent.WHEN_FOCUSED)
+                .put(KeyStroke.getKeyStroke("F3"), "findNextInputCode");
+        inputArea.getActionMap().put("findNextInputCode", new AbstractAction() {
+            @Override public void actionPerformed(ActionEvent event) {
+                if (inputSearchText.isEmpty()) {
+                    inputArea.getActionMap().get("findInputCode").actionPerformed(event);
+                } else {
+                    findInputMatch(true);
+                }
+            }
+        });
+
+        inputArea.getInputMap(JComponent.WHEN_FOCUSED)
+                .put(KeyStroke.getKeyStroke("shift F3"), "findPreviousInputCode");
+        inputArea.getActionMap().put("findPreviousInputCode", new AbstractAction() {
+            @Override public void actionPerformed(ActionEvent event) {
+                if (inputSearchText.isEmpty()) {
+                    inputArea.getActionMap().get("findInputCode").actionPerformed(event);
+                } else {
+                    findInputMatch(false);
+                }
+            }
+        });
+    }
+
+    private void showInputSearchDialog() {
+        if (inputSearchDialog == null) createInputSearchDialog();
+
+        String selectedText = inputArea.getSelectedText();
+        if (selectedText != null && !selectedText.isBlank()) {
+            inputSearchField.setText(selectedText);
+        } else if (inputSearchField.getText().isEmpty()) {
+            inputSearchField.setText(inputSearchText);
+        }
+        inputSearchDialog.setLocationRelativeTo(this);
+        inputSearchDialog.setVisible(true);
+        inputSearchDialog.toFront();
+        inputSearchField.requestFocusInWindow();
+        inputSearchField.selectAll();
+    }
+
+    private void createInputSearchDialog() {
+        Window owner = SwingUtilities.getWindowAncestor(this);
+        inputSearchDialog = new JDialog(owner, "Find in Input Code", Dialog.ModalityType.MODELESS);
+        inputSearchDialog.setDefaultCloseOperation(JDialog.HIDE_ON_CLOSE);
+
+        inputSearchField = new JTextField(28);
+        inputSearchField.addActionListener(event -> searchFromDialog(true));
+
+        JButton previous = new JButton("Previous");
+        previous.addActionListener(event -> searchFromDialog(false));
+        JButton next = new JButton("Next");
+        next.addActionListener(event -> searchFromDialog(true));
+        JButton close = new JButton("Close");
+        close.addActionListener(event -> inputSearchDialog.setVisible(false));
+
+        JPanel content = new JPanel(new BorderLayout(8, 8));
+        content.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        content.add(inputSearchField, BorderLayout.CENTER);
+        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+        buttons.add(previous);
+        buttons.add(next);
+        buttons.add(close);
+        content.add(buttons, BorderLayout.SOUTH);
+        inputSearchDialog.setContentPane(content);
+        inputSearchDialog.pack();
+    }
+
+    private void searchFromDialog(boolean forward) {
+        inputSearchText = inputSearchField.getText();
+        if (inputSearchText.isEmpty()) {
+            Toolkit.getDefaultToolkit().beep();
+            return;
+        }
+        findInputMatch(forward);
+        inputSearchField.requestFocusInWindow();
+        SwingUtilities.invokeLater(() -> inputArea.getCaret().setSelectionVisible(true));
+    }
+
+    private void findInputMatch(boolean forward) {
+        String content = inputArea.getText();
+        String haystack = content.toLowerCase(Locale.ROOT);
+        String needle = inputSearchText.toLowerCase(Locale.ROOT);
+        int match;
+        boolean wrapped = false;
+
+        if (forward) {
+            int start = Math.max(inputArea.getSelectionEnd(), inputArea.getCaretPosition());
+            match = haystack.indexOf(needle, start);
+            if (match < 0 && start > 0) {
+                match = haystack.indexOf(needle);
+                wrapped = match >= 0;
+            }
+        } else {
+            int start = Math.min(inputArea.getSelectionStart(), inputArea.getCaretPosition()) - 1;
+            match = start >= 0 ? haystack.lastIndexOf(needle, start) : -1;
+            if (match < 0 && start < haystack.length() - 1) {
+                match = haystack.lastIndexOf(needle);
+                wrapped = match >= 0;
+            }
+        }
+
+        if (match < 0) {
+            status.setForeground(new Color(225, 105, 105));
+            status.setText("No match found for \"" + inputSearchText + "\".");
+            Toolkit.getDefaultToolkit().beep();
+            return;
+        }
+
+        inputArea.requestFocusInWindow();
+        inputArea.select(match, match + inputSearchText.length());
+        status.setForeground(AssistantTheme.MUTED);
+        status.setText((wrapped ? "Search wrapped. " : "")
+                + "Found \"" + content.substring(match, match + inputSearchText.length()) + "\".");
     }
 
     private JPanel createControls() {
@@ -84,7 +225,9 @@ public final class MapDoublerPanel extends JPanel {
 
     private JPanel createWorkspace() {
         outputArea.setEditable(true);
+        TextSearchSupport.install(outputArea, this, "Doubled Result");
         logArea.setEditable(false);
+        logArea.setBackground(AssistantTheme.CODE_BACKGROUND);
         JSplitPane codeSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
                 titledScroll("Input Code:", inputArea),
                 titledScroll("Doubled result:", outputArea));
@@ -126,6 +269,7 @@ public final class MapDoublerPanel extends JPanel {
         JTextArea area = new JTextArea();
         area.setFont(new Font("Verdana", Font.PLAIN, 12));
         area.setLineWrap(false);
+        area.setBackground(AssistantTheme.CODE_BACKGROUND);
         return area;
     }
 
@@ -169,18 +313,30 @@ public final class MapDoublerPanel extends JPanel {
             List<String> actor = new ArrayList<>();
             for (int line = index; line <= end; line++) actor.add(lines[line]);
             transformActor(actor, changes);
+            transformEventsAndTags(actor, changes);
             output.addAll(actor);
             index = end + 1;
         }
-        for (int line = 0; line < output.size(); line++) {
-            String before = output.get(line);
-            String after = RED_TOKEN.matcher(before).replaceAll("blue");
-            if (!before.equals(after)) {
-                output.set(line, after);
-                changes.add(new Change("Events & Tags", "red changed to blue", before, after));
-            }
-        }
         return new TransformResult(String.join(separator, output), List.copyOf(changes));
+    }
+
+    private static void transformEventsAndTags(List<String> actor, List<Change> changes) {
+        String actorName = readActorName(actor.get(0));
+        String actorClass = readActorClass(actor.get(0));
+        for (int line = 1; line < actor.size() - 1; line++) {
+            String before = actor.get(line);
+            Matcher property = EVENT_OR_TAG.matcher(before);
+            if (!property.matches()) continue;
+
+            String value = property.group(4);
+            String transformedValue = RED_TOKEN.matcher(value).replaceAll("blue");
+            if (value.equals(transformedValue)) continue;
+
+            String after = property.group(1) + property.group(2) + property.group(3) + transformedValue;
+            actor.set(line, after);
+            changes.add(new Change(actorClass, actorName,
+                    property.group(2) + ": red changed to blue", before, after));
+        }
     }
 
     private static int findActorEnd(String[] lines, int start) {
@@ -191,20 +347,19 @@ public final class MapDoublerPanel extends JPanel {
     }
 
     private static void transformActor(List<String> actor, List<Change> changes) {
-        Matcher classMatcher = ACTOR_CLASS.matcher(actor.get(0));
-        if (!classMatcher.find()) return;
-        String actorClass = classMatcher.group(1);
+        String actorClass = readActorClass(actor.get(0));
+        if (actorClass.isEmpty()) return;
         String actorName = readActorName(actor.get(0));
 
         if (actorClass.equalsIgnoreCase("PlayerStart")) {
-            setOrInsert(actor, TEAM_NUMBER, "TeamNumber", "1", actorName, changes);
+            setOrInsert(actor, TEAM_NUMBER, "TeamNumber", "1", actorClass, actorName, changes);
         } else if (actorClass.equalsIgnoreCase("FlagBase")) {
-            invertFlagTeam(actor, actorName, changes);
+            invertFlagTeam(actor, actorClass, actorName, changes);
         }
     }
 
     private static void setOrInsert(List<String> actor, Pattern propertyPattern,
-                                    String key, String value, String actorName,
+                                    String key, String value, String actorClass, String actorName,
                                     List<Change> changes) {
         for (int line = 1; line < actor.size() - 1; line++) {
             if (!propertyPattern.matcher(actor.get(line)).find()) continue;
@@ -212,32 +367,36 @@ public final class MapDoublerPanel extends JPanel {
             String after = replaceAssignment(before, key, value);
             if (!before.equals(after)) {
                 actor.set(line, after);
-                changes.add(new Change(actorName, key + " set to " + value, before, after));
+                changes.add(new Change(actorClass, actorName, key + " set to " + value, before, after));
             }
             return;
         }
         String inserted = propertyIndent(actor) + key + "=" + value;
         actor.add(1, inserted);
-        changes.add(new Change(actorName, key + " inserted as " + value, "<missing>", inserted));
+        changes.add(new Change(actorClass, actorName,
+                key + " inserted as " + value, "<missing>", inserted));
     }
 
-    private static void invertFlagTeam(List<String> actor, String actorName, List<Change> changes) {
+    private static void invertFlagTeam(List<String> actor, String actorClass,
+                                       String actorName, List<Change> changes) {
         for (int line = 1; line < actor.size() - 1; line++) {
             String before = actor.get(line);
             if (!TEAM.matcher(before).find()) continue;
             if (TEAM_ONE.matcher(before).matches()) {
                 actor.set(line, "");
-                changes.add(new Change(actorName, "Team=1 removed for the doubled FlagBase", before, "<empty line>"));
+                changes.add(new Change(actorClass, actorName,
+                        "Team=1 removed for the doubled FlagBase", before, "<empty line>"));
             } else {
                 String after = replaceAssignment(before, "Team", "1");
                 actor.set(line, after);
-                changes.add(new Change(actorName, "Team changed to 1", before, after));
+                changes.add(new Change(actorClass, actorName, "Team changed to 1", before, after));
             }
             return;
         }
         String inserted = propertyIndent(actor) + "Team=1";
         actor.add(1, inserted);
-        changes.add(new Change(actorName, "Team=1 inserted for the doubled FlagBase", "<missing>", inserted));
+        changes.add(new Change(actorClass, actorName,
+                "Team=1 inserted for the doubled FlagBase", "<missing>", inserted));
     }
 
     private static String replaceAssignment(String line, String key, String value) {
@@ -261,6 +420,11 @@ public final class MapDoublerPanel extends JPanel {
         return matcher.find() ? matcher.group(1) : "Unnamed actor";
     }
 
+    private static String readActorClass(String beginLine) {
+        Matcher matcher = ACTOR_CLASS.matcher(beginLine);
+        return matcher.find() ? matcher.group(1) : "";
+    }
+
     private void writeLog(List<Change> changes, boolean applied) {
         logArea.setText("");
         StyledDocument document = logArea.getStyledDocument();
@@ -273,16 +437,32 @@ public final class MapDoublerPanel extends JPanel {
                 ? new Color(94, 205, 130) : new Color(235, 166, 65));
         StyleConstants.setBold(heading, true);
         StyleConstants.setFontSize(heading, 15);
+        SimpleAttributeSet categoryHeading = new SimpleAttributeSet(normal);
+        StyleConstants.setForeground(categoryHeading, AssistantTheme.MUTED);
+        StyleConstants.setBold(categoryHeading, true);
+        StyleConstants.setFontSize(categoryHeading, 13);
         if (changes.isEmpty()) {
             appendLog(document, "No PlayerStart, FlagBase, or red-to-blue changes were required.\n", normal);
         } else {
             appendLog(document, applied ? "Applied changes:\n" : "Changes that will be made:\n", heading);
-            Map<String, List<Change>> byActor = new LinkedHashMap<>();
-            for (Change change : changes) {
-                byActor.computeIfAbsent(change.actor(), ignored -> new ArrayList<>()).add(change);
+            List<Change> sortedChanges = new ArrayList<>(changes);
+            sortedChanges.sort(Comparator
+                    .comparingInt((Change change) -> logCategoryPriority(change.actorClass()))
+                    .thenComparing(Change::actorClass, String.CASE_INSENSITIVE_ORDER)
+                    .thenComparing(Change::actor, String.CASE_INSENSITIVE_ORDER));
+            Map<ActorKey, List<Change>> byActor = new LinkedHashMap<>();
+            for (Change change : sortedChanges) {
+                ActorKey key = new ActorKey(change.actorClass(), change.actor());
+                byActor.computeIfAbsent(key, ignored -> new ArrayList<>()).add(change);
             }
-            for (Map.Entry<String, List<Change>> actor : byActor.entrySet()) {
-                appendLog(document, "\n" + actor.getKey() + ":\n", normal);
+            String currentCategory = "";
+            for (Map.Entry<ActorKey, List<Change>> actor : byActor.entrySet()) {
+                String category = logCategory(actor.getKey().actorClass());
+                if (!category.equals(currentCategory)) {
+                    appendLog(document, "\n" + category + "\n", categoryHeading);
+                    currentCategory = category;
+                }
+                appendLog(document, "\n" + actor.getKey().name() + ":\n", normal);
                 for (Change change : actor.getValue()) {
                     appendLog(document, "  " + change.before().strip()
                             + " -> " + change.after().strip() + "\n", normal);
@@ -290,6 +470,24 @@ public final class MapDoublerPanel extends JPanel {
             }
         }
         logArea.setCaretPosition(0);
+    }
+
+    private static int logCategoryPriority(String actorClass) {
+        if (actorClass.equalsIgnoreCase("FlagBase")
+                || actorClass.equalsIgnoreCase("PlayerStart")) return 0;
+        if (actorClass.equalsIgnoreCase("Mover")) return 1;
+        if (actorClass.equalsIgnoreCase("Trigger")) return 2;
+        if (actorClass.equalsIgnoreCase("SpecialEvent")) return 3;
+        return 4;
+    }
+
+    private static String logCategory(String actorClass) {
+        if (actorClass.equalsIgnoreCase("FlagBase")
+                || actorClass.equalsIgnoreCase("PlayerStart")) return "Flags & PlayerStarts:";
+        if (actorClass.equalsIgnoreCase("Mover")) return "Movers:";
+        if (actorClass.equalsIgnoreCase("Trigger")) return "Triggers:";
+        if (actorClass.equalsIgnoreCase("SpecialEvent")) return "SpecialEvents:";
+        return actorClass.isBlank() ? "Other Actors:" : actorClass + ":";
     }
 
     private static void appendLog(StyledDocument document, String text, SimpleAttributeSet style) {
@@ -320,6 +518,7 @@ public final class MapDoublerPanel extends JPanel {
         status.setText("Paste the your map code here, then press Analyze or Double.");
     }
 
-    record Change(String actor, String description, String before, String after) { }
+    record Change(String actorClass, String actor, String description, String before, String after) { }
+    private record ActorKey(String actorClass, String name) { }
     record TransformResult(String output, List<Change> changes) { }
 }
