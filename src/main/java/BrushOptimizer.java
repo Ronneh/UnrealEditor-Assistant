@@ -26,6 +26,7 @@ import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextPane;
 import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
@@ -65,9 +66,14 @@ public final class BrushOptimizer {
 
     private String analyzedMap = "";
     private List<BrushIssue> issues = List.of();
+    private boolean optimizationRunning;
+    private int optimizationGeneration;
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new BrushOptimizer().show());
+        SwingUtilities.invokeLater(() -> {
+            AssistantTheme.install();
+            new BrushOptimizer().show();
+        });
     }
 
     private void show() {
@@ -118,6 +124,7 @@ public final class BrushOptimizer {
         controls.add(button("Analyze", this::analyzeOnly));
         controls.add(button("Optimize", this::optimizeAllBrushes));
         controls.add(button("Copy result", this::copyOutput));
+        controls.add(button("Paste", this::pasteInput));
         controls.add(button("Reset", this::reset));
         controls.add(new JLabel("Font size:"));
         fontSizeBox.setSelectedItem(12);
@@ -200,26 +207,52 @@ public final class BrushOptimizer {
     }
 
     private void runOptimization(boolean writeOutput) {
-        analyzedMap = inputArea.getText();
+        if (optimizationRunning) return;
+        String input = inputArea.getText();
         int gridStep = (Integer) gridStepBox.getSelectedItem();
         int minMove = (Integer) minMoveBox.getSelectedItem();
         int maxMove = (Integer) maxMoveBox.getSelectedItem();
-        issues = findOffGridBrushes(analyzedMap, gridStep, minMove);
-        boolean[] optimizeActor = new boolean[issues.size()];
-        java.util.Arrays.fill(optimizeActor, true);
-        String optimized = optimizeMap(
-                analyzedMap, issues, optimizeActor, gridStep, minMove, maxMove, preserveCurveLines.isSelected());
-        int changedLines = writeOptimizationLog(analyzedMap, optimized, !writeOutput);
-        appendPlanarityWarnings(optimized);
-        if (writeOutput) outputArea.setText(optimized);
-        boolean faulty = issues.stream().anyMatch(issue -> issue.offGridCoordinates > 0);
-        preview.showBrush(writeOutput ? optimized : analyzedMap,
-                writeOutput || !faulty ? new Color(94, 205, 130) : new Color(225, 75, 75),
-                writeOutput ? "Optimized result" : faulty ? "Input: off-grid" : "Input: on-grid");
-        statusLabel.setForeground(new Color(0, 128, 0));
-        statusLabel.setText(changedLines == 0
-                ? "OK: No changes required"
-                : (writeOutput ? "OK: Updated " : "OK: Analysis found ") + changedLines + " Vertex line(s)");
+        boolean preserveCurves = preserveCurveLines.isSelected();
+        int generation = ++optimizationGeneration;
+        optimizationRunning = true;
+        statusLabel.setForeground(AssistantTheme.MUTED);
+        statusLabel.setText(writeOutput ? "Optimizing..." : "Analyzing...");
+
+        new SwingWorker<OptimizationRun, Void>() {
+            @Override protected OptimizationRun doInBackground() {
+                List<BrushIssue> found = findOffGridBrushes(input, gridStep, minMove);
+                boolean[] optimizeActor = new boolean[found.size()];
+                java.util.Arrays.fill(optimizeActor, true);
+                String optimized = optimizeMap(
+                        input, found, optimizeActor, gridStep, minMove, maxMove, preserveCurves);
+                return new OptimizationRun(input, found, optimized);
+            }
+
+            @Override protected void done() {
+                optimizationRunning = false;
+                if (generation != optimizationGeneration) return;
+                try {
+                    OptimizationRun run = get();
+                    analyzedMap = run.input();
+                    issues = run.issues();
+                    int changedLines = writeOptimizationLog(analyzedMap, run.optimized(), !writeOutput);
+                    appendPlanarityWarnings(run.optimized());
+                    if (writeOutput) outputArea.setText(run.optimized());
+                    boolean faulty = issues.stream().anyMatch(issue -> issue.offGridCoordinates > 0);
+                    preview.showBrush(writeOutput ? run.optimized() : analyzedMap,
+                            writeOutput || !faulty ? new Color(94, 205, 130) : new Color(225, 75, 75),
+                            writeOutput ? "Optimized result" : faulty ? "Input: off-grid" : "Input: on-grid");
+                    statusLabel.setForeground(new Color(0, 128, 0));
+                    statusLabel.setText(changedLines == 0
+                            ? "OK: No changes required"
+                            : (writeOutput ? "OK: Updated " : "OK: Analysis found ")
+                                    + changedLines + " Vertex line(s)");
+                } catch (Exception exception) {
+                    statusLabel.setForeground(new Color(180, 40, 40));
+                    statusLabel.setText("Optimization failed: " + exception.getMessage());
+                }
+            }
+        }.execute();
     }
 
     private void copyOutput(ActionEvent ignored) {
@@ -235,7 +268,20 @@ public final class BrushOptimizer {
         statusLabel.setText("OK: Copied");
     }
 
+    private void pasteInput(ActionEvent ignored) {
+        try {
+            inputArea.setText(ClipboardTextSupport.readText());
+            inputArea.setCaretPosition(0);
+            statusLabel.setForeground(new Color(0, 128, 0));
+            statusLabel.setText("OK: Pasted input code");
+        } catch (Exception exception) {
+            statusLabel.setForeground(new Color(180, 40, 40));
+            statusLabel.setText("Clipboard does not contain text");
+        }
+    }
+
     private void reset(ActionEvent ignored) {
+        optimizationGeneration++;
         inputArea.setText("");
         outputArea.setText("");
         logPane.setText("");
@@ -368,6 +414,7 @@ public final class BrushOptimizer {
 
     private static String optimizeMap(String map, List<BrushIssue> issues, boolean[] optimizeActor,
                                       int gridStep, int minMove, int maxMove, boolean preserveStraightChains) {
+        String separator = lineSeparator(map);
         String[] lines = map.split("\\R", -1);
         StringBuilder output = new StringBuilder();
         int issueIndex = 0;
@@ -378,7 +425,7 @@ public final class BrushOptimizer {
                     && line >= issues.get(issueIndex).startLine && line <= issues.get(issueIndex).endLine;
             output.append(optimize && VERTEX_LINE.matcher(lines[line]).find()
                     ? snapVertexLine(lines[line], gridStep, minMove, maxMove) : lines[line]);
-            if (line < lines.length - 1) output.append(System.lineSeparator());
+            if (line < lines.length - 1) output.append(separator);
         }
         String optimized = output.toString();
         return preserveStraightChains
@@ -393,6 +440,7 @@ public final class BrushOptimizer {
      */
     private static String preserveCollinearMidpoints(String originalMap, String snappedMap,
                                                       List<BrushIssue> issues, boolean[] optimizeActor, int gridStep) {
+        String separator = lineSeparator(snappedMap);
         String[] originalLines = originalMap.split("\\R", -1);
         String[] snappedLines = snappedMap.split("\\R", -1);
 
@@ -442,7 +490,13 @@ public final class BrushOptimizer {
                 for (int line : entry.getValue()) snappedLines[line] = replaceVertex(snappedLines[line], replacement);
             }
         }
-        return String.join(System.lineSeparator(), snappedLines);
+        return String.join(separator, snappedLines);
+    }
+
+    private static String lineSeparator(String text) {
+        if (text.contains("\r\n")) return "\r\n";
+        if (text.indexOf('\r') >= 0) return "\r";
+        return "\n";
     }
 
     private static Point3[] alignMidpoint(Point3 first, Point3 middle, Point3 last,
@@ -599,6 +653,8 @@ public final class BrushOptimizer {
     private record MidpointRelation(Point3 first, Point3 middle, Point3 last) { }
 
     private record AxisAlignment(double first, double middle, double last) { }
+
+    private record OptimizationRun(String input, List<BrushIssue> issues, String optimized) { }
 
     private record Point3(double x, double y, double z) {
         static Point3 of(double[] values) { return new Point3(values[0], values[1], values[2]); }

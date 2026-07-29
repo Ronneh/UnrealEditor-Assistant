@@ -62,142 +62,14 @@ public final class MapDoublerPanel extends JPanel {
     private final JTextArea outputArea = codeArea();
     private final JTextPane logArea = new JTextPane();
     private final JLabel status = new JLabel("Paste your map code here, then press Analyze and Double map.");
-    private String inputSearchText = "";
-    private JDialog inputSearchDialog;
-    private JTextField inputSearchField;
 
     public MapDoublerPanel() {
         super(new BorderLayout(8, 8));
         setBackground(AssistantTheme.BACKGROUND);
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        installInputSearch();
+        TextSearchSupport.install(inputArea, this, "Input Code");
         add(createControls(), BorderLayout.NORTH);
         add(createWorkspace(), BorderLayout.CENTER);
-    }
-
-    private void installInputSearch() {
-        inputArea.getInputMap(JComponent.WHEN_FOCUSED)
-                .put(KeyStroke.getKeyStroke("control F"), "findInputCode");
-        inputArea.getActionMap().put("findInputCode", new AbstractAction() {
-            @Override public void actionPerformed(ActionEvent event) {
-                showInputSearchDialog();
-            }
-        });
-
-        inputArea.getInputMap(JComponent.WHEN_FOCUSED)
-                .put(KeyStroke.getKeyStroke("F3"), "findNextInputCode");
-        inputArea.getActionMap().put("findNextInputCode", new AbstractAction() {
-            @Override public void actionPerformed(ActionEvent event) {
-                if (inputSearchText.isEmpty()) {
-                    inputArea.getActionMap().get("findInputCode").actionPerformed(event);
-                } else {
-                    findInputMatch(true);
-                }
-            }
-        });
-
-        inputArea.getInputMap(JComponent.WHEN_FOCUSED)
-                .put(KeyStroke.getKeyStroke("shift F3"), "findPreviousInputCode");
-        inputArea.getActionMap().put("findPreviousInputCode", new AbstractAction() {
-            @Override public void actionPerformed(ActionEvent event) {
-                if (inputSearchText.isEmpty()) {
-                    inputArea.getActionMap().get("findInputCode").actionPerformed(event);
-                } else {
-                    findInputMatch(false);
-                }
-            }
-        });
-    }
-
-    private void showInputSearchDialog() {
-        if (inputSearchDialog == null) createInputSearchDialog();
-
-        String selectedText = inputArea.getSelectedText();
-        if (selectedText != null && !selectedText.isBlank()) {
-            inputSearchField.setText(selectedText);
-        } else if (inputSearchField.getText().isEmpty()) {
-            inputSearchField.setText(inputSearchText);
-        }
-        inputSearchDialog.setLocationRelativeTo(this);
-        inputSearchDialog.setVisible(true);
-        inputSearchDialog.toFront();
-        inputSearchField.requestFocusInWindow();
-        inputSearchField.selectAll();
-    }
-
-    private void createInputSearchDialog() {
-        Window owner = SwingUtilities.getWindowAncestor(this);
-        inputSearchDialog = new JDialog(owner, "Find in Input Code", Dialog.ModalityType.MODELESS);
-        inputSearchDialog.setDefaultCloseOperation(JDialog.HIDE_ON_CLOSE);
-
-        inputSearchField = new JTextField(28);
-        inputSearchField.addActionListener(event -> searchFromDialog(true));
-
-        JButton previous = new JButton("Previous");
-        previous.addActionListener(event -> searchFromDialog(false));
-        JButton next = new JButton("Next");
-        next.addActionListener(event -> searchFromDialog(true));
-        JButton close = new JButton("Close");
-        close.addActionListener(event -> inputSearchDialog.setVisible(false));
-
-        JPanel content = new JPanel(new BorderLayout(8, 8));
-        content.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        content.add(inputSearchField, BorderLayout.CENTER);
-        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
-        buttons.add(previous);
-        buttons.add(next);
-        buttons.add(close);
-        content.add(buttons, BorderLayout.SOUTH);
-        inputSearchDialog.setContentPane(content);
-        inputSearchDialog.pack();
-    }
-
-    private void searchFromDialog(boolean forward) {
-        inputSearchText = inputSearchField.getText();
-        if (inputSearchText.isEmpty()) {
-            Toolkit.getDefaultToolkit().beep();
-            return;
-        }
-        findInputMatch(forward);
-        inputSearchField.requestFocusInWindow();
-        SwingUtilities.invokeLater(() -> inputArea.getCaret().setSelectionVisible(true));
-    }
-
-    private void findInputMatch(boolean forward) {
-        String content = inputArea.getText();
-        String haystack = content.toLowerCase(Locale.ROOT);
-        String needle = inputSearchText.toLowerCase(Locale.ROOT);
-        int match;
-        boolean wrapped = false;
-
-        if (forward) {
-            int start = Math.max(inputArea.getSelectionEnd(), inputArea.getCaretPosition());
-            match = haystack.indexOf(needle, start);
-            if (match < 0 && start > 0) {
-                match = haystack.indexOf(needle);
-                wrapped = match >= 0;
-            }
-        } else {
-            int start = Math.min(inputArea.getSelectionStart(), inputArea.getCaretPosition()) - 1;
-            match = start >= 0 ? haystack.lastIndexOf(needle, start) : -1;
-            if (match < 0 && start < haystack.length() - 1) {
-                match = haystack.lastIndexOf(needle);
-                wrapped = match >= 0;
-            }
-        }
-
-        if (match < 0) {
-            status.setForeground(new Color(225, 105, 105));
-            status.setText("No match found for \"" + inputSearchText + "\".");
-            Toolkit.getDefaultToolkit().beep();
-            return;
-        }
-
-        inputArea.requestFocusInWindow();
-        inputArea.select(match, match + inputSearchText.length());
-        status.setForeground(AssistantTheme.MUTED);
-        status.setText((wrapped ? "Search wrapped. " : "")
-                + "Found \"" + content.substring(match, match + inputSearchText.length()) + "\".");
     }
 
     private JPanel createControls() {
@@ -208,6 +80,7 @@ public final class MapDoublerPanel extends JPanel {
         actions.add(button("Analyze", event -> analyze(false)));
         actions.add(button("Double map!", event -> analyze(true)));
         actions.add(button("Copy result", this::copyResult));
+        actions.add(button("Paste", this::pasteInput));
         actions.add(button("Reset", this::reset));
         controls.add(actions, BorderLayout.WEST);
 
@@ -508,6 +381,18 @@ public final class MapDoublerPanel extends JPanel {
                 .setContents(new StringSelection(outputArea.getText()), null);
         status.setForeground(new Color(94, 205, 130));
         status.setText("Result copied to clipboard.");
+    }
+
+    private void pasteInput(ActionEvent ignored) {
+        try {
+            inputArea.setText(ClipboardTextSupport.readText());
+            inputArea.setCaretPosition(0);
+            status.setForeground(new Color(94, 205, 130));
+            status.setText("Input code pasted from clipboard.");
+        } catch (Exception exception) {
+            status.setForeground(new Color(225, 105, 105));
+            status.setText("The clipboard does not contain text.");
+        }
     }
 
     private void reset(ActionEvent ignored) {

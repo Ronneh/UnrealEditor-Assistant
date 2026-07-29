@@ -19,6 +19,7 @@ public final class AssistantTheme {
     public static final Color PANEL = new Color(30, 36, 46);
     public static final Color PANEL_ALT = new Color(36, 43, 55);
     public static final Color CODE_BACKGROUND = new Color(12, 15, 20);
+    public static final Color SCROLL_THUMB = new Color(40, 47, 59);
     public static final Color BORDER = new Color(58, 67, 82);
     public static final Color TEXT = new Color(232, 237, 244);
     public static final Color MUTED = new Color(156, 167, 184);
@@ -80,6 +81,10 @@ public final class AssistantTheme {
         UIManager.put("Spinner.editorBorderPainted", false);
         UIManager.put("CheckBox.background", PANEL);
         UIManager.put("CheckBox.foreground", TEXT);
+        UIManager.put("RadioButton.background", PANEL);
+        UIManager.put("RadioButton.foreground", TEXT);
+        UIManager.put("RadioButton.disabledText", MUTED);
+        UIManager.put("RadioButton.select", ACCENT_DARK);
         UIManager.put("ScrollPane.background", PANEL);
         UIManager.put("ScrollPane.border", BorderFactory.createEmptyBorder());
         UIManager.put("ScrollPane.viewportBorder", BorderFactory.createEmptyBorder());
@@ -95,10 +100,10 @@ public final class AssistantTheme {
         UIManager.put("ScrollBar.foreground", MUTED);
         UIManager.put("ScrollBar.track", new Color(18, 22, 29));
         UIManager.put("ScrollBar.trackHighlight", PANEL_ALT);
-        UIManager.put("ScrollBar.thumb", BORDER);
-        UIManager.put("ScrollBar.thumbDarkShadow", BORDER);
-        UIManager.put("ScrollBar.thumbHighlight", BORDER);
-        UIManager.put("ScrollBar.thumbShadow", BORDER);
+        UIManager.put("ScrollBar.thumb", SCROLL_THUMB);
+        UIManager.put("ScrollBar.thumbDarkShadow", SCROLL_THUMB);
+        UIManager.put("ScrollBar.thumbHighlight", SCROLL_THUMB);
+        UIManager.put("ScrollBar.thumbShadow", SCROLL_THUMB);
         UIManager.put("ScrollBar.buttonBackground", PANEL_ALT);
         UIManager.put("ScrollBar.buttonDarkShadow", BORDER);
         UIManager.put("ScrollBar.buttonHighlight", PANEL_ALT);

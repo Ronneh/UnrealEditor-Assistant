@@ -1,6 +1,7 @@
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+import javax.swing.ImageIcon;
 
 /** Image conversion and high-quality resizing shared by the image tools. */
 public final class ImageToolSupport {
@@ -8,10 +9,15 @@ public final class ImageToolSupport {
 
     public static BufferedImage toBuffered(java.awt.Image source) {
         if (source instanceof BufferedImage buffered) return buffered;
-        BufferedImage result = new BufferedImage(source.getWidth(null), source.getHeight(null),
-                BufferedImage.TYPE_INT_ARGB);
+        ImageIcon loaded = new ImageIcon(source);
+        int width = loaded.getIconWidth();
+        int height = loaded.getIconHeight();
+        if (width <= 0 || height <= 0) {
+            throw new IllegalArgumentException("The clipboard image could not be decoded.");
+        }
+        BufferedImage result = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = result.createGraphics();
-        g.drawImage(source, 0, 0, null);
+        loaded.paintIcon(null, g, 0, 0);
         g.dispose();
         return result;
     }

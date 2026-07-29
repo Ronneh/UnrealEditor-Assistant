@@ -43,6 +43,7 @@ public final class BrushGeneratorPanel extends JPanel {
 
     private final JTextArea output = new JTextArea();
     private final JLabel status = new JLabel(" ");
+    private final BrushPreviewPanel preview = new BrushPreviewPanel();
 
     public BrushGeneratorPanel() {
         super(new BorderLayout(12, 12));
@@ -50,6 +51,9 @@ public final class BrushGeneratorPanel extends JPanel {
         setBorder(BorderFactory.createEmptyBorder(14, 16, 16, 16));
         grid.setSelectedItem(32);
         alignToSide.setOpaque(false);
+        brushName.setPreferredSize(new Dimension(112, 27));
+        operation.setPreferredSize(new Dimension(112, 27));
+        grid.setPreferredSize(new Dimension(112, 27));
         add(createHeader(), BorderLayout.NORTH);
         add(createProperties(), BorderLayout.WEST);
         add(createOutput(), BorderLayout.CENTER);
@@ -77,16 +81,18 @@ public final class BrushGeneratorPanel extends JPanel {
         title.setFont(title.getFont().deriveFont(Font.BOLD, 16f));
         card.add(title, BorderLayout.NORTH);
 
-        JPanel allProperties = new JPanel(new BorderLayout(0, 9));
-        allProperties.setOpaque(false);
-        JPanel common = form();
+        JPanel content = new JPanel(new BorderLayout(0, 12));
+        content.setOpaque(false);
+        JPanel properties = form();
         int row = 0;
-        addRow(common, row++, "Name:", brushName);
-        addRow(common, row++, "Operation:", operation);
-        addRow(common, row, "Grid:", grid);
-        allProperties.add(common, BorderLayout.NORTH);
-        allProperties.add(cylinderProperties(), BorderLayout.CENTER);
-        card.add(allProperties, BorderLayout.NORTH);
+        addRow(properties, row++, "Name:", brushName);
+        addRow(properties, row++, "Operation:", operation);
+        addRow(properties, row++, "Grid:", grid);
+        addRow(properties, row++, "Height:", cylinderHeight);
+        addRow(properties, row++, "Outer Radius:", outerRadius);
+        addRow(properties, row++, "Inner Radius:", innerRadius);
+        addRow(properties, row++, "Sides:", cylinderSides);
+        addRow(properties, row++, "Align to Side:", alignToSide);
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 7, 0));
         actions.setOpaque(false);
@@ -96,18 +102,12 @@ public final class BrushGeneratorPanel extends JPanel {
         copy.addActionListener(event -> copy());
         actions.add(generate);
         actions.add(copy);
-        card.add(actions, BorderLayout.SOUTH);
+        addActionRow(properties, row, actions);
+        content.add(properties, BorderLayout.NORTH);
+        preview.setPreferredSize(new Dimension(270, 190));
+        content.add(preview, BorderLayout.CENTER);
+        card.add(content, BorderLayout.CENTER);
         return card;
-    }
-
-    private JPanel cylinderProperties() {
-        JPanel panel = form();
-        addRow(panel, 0, "Height:", cylinderHeight);
-        addRow(panel, 1, "Outer Radius:", outerRadius);
-        addRow(panel, 2, "Inner Radius:", innerRadius);
-        addRow(panel, 3, "Sides:", cylinderSides);
-        addRow(panel, 4, "Align to Side:", alignToSide);
-        return panel;
     }
 
     private static JPanel form() {
@@ -141,6 +141,18 @@ public final class BrushGeneratorPanel extends JPanel {
         panel.add(field, c);
     }
 
+    private static void addActionRow(JPanel panel, int row, JPanel actions) {
+        GridBagConstraints c = new GridBagConstraints();
+        c.gridy = row;
+        c.gridx = 0;
+        c.gridwidth = 2;
+        c.weightx = 1;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.anchor = GridBagConstraints.WEST;
+        c.insets = new Insets(2, 0, 0, 0);
+        panel.add(actions, c);
+    }
+
     private static JSpinner spinner(int value, int min, int max, int step) {
         JSpinner spinner = new JSpinner(new SpinnerNumberModel(value, min, max, step));
         spinner.setPreferredSize(new Dimension(112, 27));
@@ -159,6 +171,7 @@ public final class BrushGeneratorPanel extends JPanel {
             status.setText("Generated an on-grid cylinder.");
             output.setText(code);
             output.setCaretPosition(0);
+            preview.showBrush(code, new Color(94, 205, 130), "Generated brush");
             status.setForeground(new Color(94, 205, 130));
         } catch (IllegalArgumentException exception) {
             status.setForeground(new Color(225, 105, 105));

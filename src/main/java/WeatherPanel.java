@@ -16,6 +16,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -33,6 +34,9 @@ import javax.swing.SwingUtilities;
 /** Compact, key-free Open-Meteo forecast card for the home screen. */
 public final class WeatherPanel extends JPanel {
     private static final Preferences SETTINGS = Preferences.userNodeForPackage(WeatherPanel.class);
+    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(5))
+            .build();
     private final JTextField cityField = new JTextField(SETTINGS.get("weather.city", "Berlin"), 10);
     private final JButton unitButton = new JButton("°C");
     private final JLabel title = new JLabel();
@@ -45,6 +49,7 @@ public final class WeatherPanel extends JPanel {
     private WeatherData data;
     private boolean fahrenheit;
     private int selectedDay;
+    private volatile int requestGeneration;
 
     public WeatherPanel() {
         super(new BorderLayout(6, 3));
@@ -136,16 +141,16 @@ public final class WeatherPanel extends JPanel {
         if (requestedCity.isEmpty()) return;
         status.setForeground(AssistantTheme.MUTED);
         status.setText(localized("Loading forecast...", "Vorhersage wird geladen..."));
-        Thread worker = new Thread(() -> load(requestedCity), "weather-loader");
+        int generation = ++requestGeneration;
+        Thread worker = new Thread(() -> load(requestedCity, generation), "weather-loader");
         worker.setDaemon(true);
         worker.start();
     }
 
-    private void load(String requestedCity) {
+    private void load(String requestedCity, int generation) {
         try {
-            HttpClient client = HttpClient.newBuilder().build();
             String query = URLEncoder.encode(requestedCity, StandardCharsets.UTF_8);
-            String geo = get(client, "https://geocoding-api.open-meteo.com/v1/search?name="
+            String geo = get(HTTP_CLIENT, "https://geocoding-api.open-meteo.com/v1/search?name="
                     + query + "&count=1&language=en&format=json");
             String name = stringValue(geo, "name");
             double latitude = numberValue(geo, "latitude");
@@ -156,7 +161,7 @@ public final class WeatherPanel extends JPanel {
                     + "&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code"
                     + "&daily=weather_code,temperature_2m_max,temperature_2m_min"
                     + "&timezone=auto&forecast_days=7";
-            String forecast = get(client, url);
+            String forecast = get(HTTP_CLIENT, url);
             WeatherData loaded = new WeatherData(name,
                     numberValue(section(forecast, "current"), "temperature_2m"),
                     (int) numberValue(section(forecast, "current"), "relative_humidity_2m"),
@@ -171,6 +176,7 @@ public final class WeatherPanel extends JPanel {
                     numberArray(section(forecast, "daily"), "temperature_2m_min"),
                     intArray(section(forecast, "daily"), "weather_code"));
             SwingUtilities.invokeLater(() -> {
+                if (generation != requestGeneration) return;
                 data = loaded;
                 cityField.setText(requestedCity);
                 SETTINGS.put("weather.city", requestedCity);
@@ -182,6 +188,7 @@ public final class WeatherPanel extends JPanel {
             });
         } catch (Exception exception) {
             SwingUtilities.invokeLater(() -> {
+                if (generation != requestGeneration) return;
                 status.setForeground(new Color(225, 105, 105));
                 status.setText(localized(
                         "Weather is currently unavailable. Check the city or connection.",
@@ -193,7 +200,10 @@ public final class WeatherPanel extends JPanel {
     }
 
     private static String get(HttpClient client, String url) throws Exception {
-        HttpRequest request = HttpRequest.newBuilder(URI.create(url)).GET().build();
+        HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                .timeout(Duration.ofSeconds(10))
+                .GET()
+                .build();
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() != 200) throw new IllegalStateException("Weather service returned " + response.statusCode());
         return response.body();

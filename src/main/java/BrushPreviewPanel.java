@@ -54,6 +54,11 @@ public final class BrushPreviewPanel extends JPanel {
         super.removeNotify();
     }
 
+    @Override public void addNotify() {
+        super.addNotify();
+        if (!polygons.isEmpty() && !animation.isRunning()) animation.start();
+    }
+
     @Override protected void paintComponent(Graphics graphics) {
         super.paintComponent(graphics);
         Graphics2D g = (Graphics2D) graphics.create();

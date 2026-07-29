@@ -243,7 +243,7 @@ public final class ScriptingPanel extends JPanel {
     }
 
     private boolean save() {
-        return currentFile == null ? saveAs() : writeFile();
+        return currentFile == null ? saveAs() : writeFile(currentFile);
     }
 
     private boolean saveAs() {
@@ -254,13 +254,14 @@ public final class ScriptingPanel extends JPanel {
         File file = chooser.getSelectedFile();
         if (!file.getName().toLowerCase(Locale.ROOT).endsWith(".uc"))
             file = new File(file.getParentFile(), file.getName() + ".uc");
-        currentFile = file.toPath();
-        return writeFile();
+        if (!FileSaveSupport.confirmOverwrite(this, file)) return false;
+        return writeFile(file.toPath());
     }
 
-    private boolean writeFile() {
+    private boolean writeFile(Path targetFile) {
         try {
-            Files.writeString(currentFile, editor.getText(), StandardCharsets.ISO_8859_1);
+            Files.writeString(targetFile, editor.getText(), StandardCharsets.ISO_8859_1);
+            currentFile = targetFile;
             dirty = false;
             updateFileLabel();
             status.setText("Saved " + currentFile.getFileName() + ".");
