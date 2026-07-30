@@ -116,6 +116,10 @@ public final class AssistantTheme {
         UIManager.put("TabbedPane.contentAreaColor", CODE_BACKGROUND);
         UIManager.put("TabbedPane.focus", CODE_BACKGROUND);
         UIManager.put("TabbedPane.selectHighlight", BORDER);
+        UIManager.put("TabbedPane.light", BORDER);
+        UIManager.put("TabbedPane.highlight", BORDER);
+        UIManager.put("TabbedPane.shadow", BACKGROUND);
+        UIManager.put("TabbedPane.darkShadow", BACKGROUND);
         UIManager.put("Slider.background", PANEL);
         UIManager.put("Slider.foreground", TEXT);
         UIManager.put("TitledBorder.border", BorderFactory.createLineBorder(BORDER));

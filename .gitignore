@@ -1,5 +1,6 @@
 *.class
 target/
+help-content-pack/
 out/
 .idea/
 *.iml

@@ -16,6 +16,13 @@ import org.junit.jupiter.api.Test;
 
 class CoreRegressionTest {
     @Test
+    void detectsWindowsForNativeTitleBarStyling() {
+        assertTrue(WindowsTitleBar.isWindows("Windows 11"));
+        assertTrue(WindowsTitleBar.isWindows("windows 10"));
+        assertFalse(WindowsTitleBar.isWindows("Linux"));
+    }
+
+    @Test
     void convertsLazilyLoadedClipboardImages() {
         BufferedImage source = new BufferedImage(8, 6, BufferedImage.TYPE_INT_RGB);
         Image lazyImage = source.getScaledInstance(4, 3, Image.SCALE_SMOOTH);

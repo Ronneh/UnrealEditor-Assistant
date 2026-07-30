@@ -38,6 +38,34 @@ java -cp target/classes UnrealEditor2Assistant
 The first command builds the project. The second starts the application. Future
 builds use the same commands.
 
+## Editor Help
+
+The importer converts an extracted CHM tree into a standalone content pack. It
+does not embed help pages or assets in the application JAR. The application
+provides an English-only Editor Help workspace with a contents tree, weighted
+Lucene search, local tutorial rendering and Back/Forward/Home navigation.
+
+```powershell
+mvn exec:java -Dexec.mainClass=EditorHelpImporter `
+  '-Dexec.args=C:\Users\ron_3\Desktop\UnrealHelp help-content-pack'
+```
+
+The generated English-only pack contains `manifest.json`, `catalog.json`,
+cleaned pages, referenced local assets and `import-report.json`. Category paths
+and normalized text remain separate fields for the local Lucene index and a
+future source-grounded assistant.
+
+Validate the pack and regenerate its local search index with:
+
+```powershell
+mvn exec:java -Dexec.mainClass=EditorHelpIndexTool `
+  '-Dexec.args=help-content-pack help-content-pack/search-index'
+```
+
+Editor Help content, metadata, search analysis, and interface text use English
+only. For a packaged application, place the pack in `help-content` next to the
+application executable.
+
 ## Author
 
 VRN|Ron
