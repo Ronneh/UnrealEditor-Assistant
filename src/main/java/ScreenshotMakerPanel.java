@@ -27,6 +27,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.prefs.Preferences;
 import javax.imageio.ImageIO;
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
@@ -62,6 +63,9 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 public final class ScreenshotMakerPanel extends JPanel {
     private static final int OUTPUT_SIZE = 1024;
     private static final int CELL_SIZE = OUTPUT_SIZE / 2;
+    private static final Preferences PREFS = Preferences.userNodeForPackage(ScreenshotMakerPanel.class);
+    private static final String LAST_OPEN_DIRECTORY = "lastOpenDirectory";
+    private static final String LAST_EXPORT_DIRECTORY = "lastExportDirectory";
     private static final String[] VALID_RESOLUTIONS = {
             "1280x720", "1280x800", "1600x900", "1920x1080",
             "1920x1200", "2560x1440", "2560x1600", "3840x2160"
@@ -99,11 +103,11 @@ public final class ScreenshotMakerPanel extends JPanel {
     private final JSpinner dividerWidth = new JSpinner(new SpinnerNumberModel(2, 1, 40, 1));
     private final JButton dividerColor = colorButton(Color.WHITE);
     private final JRadioButton[] exportSizeButtons = {
-            new JRadioButton("4096x4096"), new JRadioButton("2048x2048"),
-            new JRadioButton("1024x1024"), new JRadioButton("512x512"),
+            new JRadioButton("2048x2048"), new JRadioButton("1024x1024"),
+            new JRadioButton("512x512"),
             new JRadioButton("256x256")
     };
-    private final int[] exportSizes = { 4096, 2048, 1024, 512, 256 };
+    private final int[] exportSizes = { 2048, 1024, 512, 256 };
     private int activeShot;
 
     private static String[] usableFontFamilies() {
@@ -215,7 +219,7 @@ public final class ScreenshotMakerPanel extends JPanel {
             group.add(button);
             exportOptions.add(button);
         }
-        exportSizeButtons[2].setSelected(true);
+        exportSizeButtons[1].setSelected(true);
         actions.add(exportOptions,BorderLayout.WEST);
 
         JPanel actionButtons=new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT,8,0));
@@ -493,8 +497,14 @@ public final class ScreenshotMakerPanel extends JPanel {
     private void loadShot(int index) {
         JFileChooser chooser=new JFileChooser();
         chooser.setFileFilter(new FileNameExtensionFilter("Screenshots (PNG, JPG, BMP)","png","jpg","jpeg","bmp"));
+        chooser.setCurrentDirectory(FileSaveSupport.preferredDirectory(
+                PREFS.get(LAST_OPEN_DIRECTORY, null),
+                new File(System.getProperty("user.home"))));
         if (chooser.showOpenDialog(this)!=JFileChooser.APPROVE_OPTION) return;
-        loadShotFile(index, chooser.getSelectedFile(), "file");
+        File file = chooser.getSelectedFile();
+        File directory = file.getAbsoluteFile().getParentFile();
+        if (directory != null) PREFS.put(LAST_OPEN_DIRECTORY, directory.getAbsolutePath());
+        loadShotFile(index, file, "file");
     }
 
     private void loadShotFile(int index, File file, String source) {
@@ -567,9 +577,7 @@ public final class ScreenshotMakerPanel extends JPanel {
     private void setShotImage(int index, BufferedImage image, String source) {
         Shot shot = shots[index];
         shot.image = image;
-        int side = Math.min(1024, Math.min(image.getWidth(), image.getHeight()));
-        shot.crop = new Rectangle((image.getWidth() - side) / 2,
-                (image.getHeight() - side) / 2, side, side);
+        shot.crop = initialCropFor(image);
         activeShot = index;
         String resolution = image.getWidth() + "x" + image.getHeight();
         shotButtons[index].setText("<html><b>Screenshot " + (index + 1)
@@ -578,6 +586,12 @@ public final class ScreenshotMakerPanel extends JPanel {
         cropStatus.setText("Screenshot " + (index + 1) + " added from " + source
                 + ". Drag the square to choose the crop.");
         updateCropSelection();
+    }
+
+    static Rectangle initialCropFor(BufferedImage image) {
+        int side = Math.min(image.getWidth(), image.getHeight());
+        return new Rectangle((image.getWidth() - side) / 2,
+                (image.getHeight() - side) / 2, side, side);
     }
 
     private boolean isValidResolution(String resolution) {
@@ -648,11 +662,16 @@ public final class ScreenshotMakerPanel extends JPanel {
         }
         JFileChooser chooser=new JFileChooser();
         chooser.setFileFilter(new FileNameExtensionFilter("PNG image","png"));
-        chooser.setSelectedFile(new File("level-screenshot.png"));
+        chooser.setCurrentDirectory(FileSaveSupport.preferredDirectory(
+                PREFS.get(LAST_EXPORT_DIRECTORY, null),
+                new File(System.getProperty("user.home"))));
+        chooser.setSelectedFile(new File(chooser.getCurrentDirectory(), "level-screenshot.png"));
         if (chooser.showSaveDialog(this)!=JFileChooser.APPROVE_OPTION) return;
         File file=chooser.getSelectedFile();
         if (!file.getName().toLowerCase().endsWith(".png")) file=new File(file.getParentFile(),file.getName()+".png");
         if (!FileSaveSupport.confirmOverwrite(this, file)) return;
+        File exportDirectory = file.getAbsoluteFile().getParentFile();
+        if (exportDirectory != null) PREFS.put(LAST_EXPORT_DIRECTORY, exportDirectory.getAbsolutePath());
         File targetFile = file;
         BufferedImage export = composition.renderOutput(exportSize, false);
         AsyncImageIO.savePng(export, targetFile, () -> { },

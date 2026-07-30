@@ -23,6 +23,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.prefs.Preferences;
+import java.util.Locale;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.Icon;
@@ -151,7 +152,7 @@ public final class WeatherPanel extends JPanel {
         try {
             String query = URLEncoder.encode(requestedCity, StandardCharsets.UTF_8);
             String geo = get(HTTP_CLIENT, "https://geocoding-api.open-meteo.com/v1/search?name="
-                    + query + "&count=1&language=en&format=json");
+                    + query + "&count=1&language=" + weatherLocale().getLanguage() + "&format=json");
             String name = stringValue(geo, "name");
             double latitude = numberValue(geo, "latitude");
             double longitude = numberValue(geo, "longitude");
@@ -229,7 +230,7 @@ public final class WeatherPanel extends JPanel {
             JPanel button = new JPanel(new BorderLayout(0, 0));
             button.setBackground(AssistantTheme.PANEL_ALT);
             JLabel dayLabel = new JLabel(date.format(
-                    DateTimeFormatter.ofPattern("EE", AssistantTheme.USER_LOCALE)), JLabel.CENTER);
+                    DateTimeFormatter.ofPattern("EE", weatherLocale())), JLabel.CENTER);
             JLabel iconLabel = new JLabel("", JLabel.CENTER);
             int code = dayCode(i);
             iconLabel.setIcon(new WeatherIcon(code, false, 27, 21));
@@ -288,7 +289,15 @@ public final class WeatherPanel extends JPanel {
     }
 
     private static String localized(String english, String german) {
-        return "de".equalsIgnoreCase(AssistantTheme.USER_LOCALE.getLanguage()) ? german : english;
+        return Locale.GERMAN.getLanguage().equals(weatherLocale().getLanguage()) ? german : english;
+    }
+
+    static Locale localeFor(Locale detectedLocale) {
+        return AssistantTheme.supportedLocale(detectedLocale);
+    }
+
+    private static Locale weatherLocale() {
+        return localeFor(AssistantTheme.USER_LOCALE);
     }
 
     private static final class PencilIcon implements Icon {

@@ -19,6 +19,7 @@ import java.awt.image.Kernel;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
+import java.util.prefs.Preferences;
 import javax.imageio.ImageIO;
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
@@ -38,7 +39,9 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 
 /** Embedded image resizing and color-adjustment utility. */
 public final class ImageResizerPanel extends JPanel {
-    private static final Integer[] SIZES = { 1024, 512, 256, 128, 64, 32, 16 };
+    private static final Integer[] SIZES = { 2048, 1024, 512, 256, 128, 64, 32, 16 };
+    private static final Preferences PREFS = Preferences.userNodeForPackage(ImageResizerPanel.class);
+    private static final String LAST_OPEN_DIRECTORY = "lastOpenDirectory";
     private final Preview preview = new Preview();
     private final JLabel details = new JLabel("No image loaded", SwingConstants.CENTER);
     private final JComboBox<Integer> size = new JComboBox<>(SIZES);
@@ -158,9 +161,15 @@ public final class ImageResizerPanel extends JPanel {
     private void openImage(ActionEvent ignored) {
         JFileChooser chooser = new JFileChooser();
         chooser.setFileFilter(new FileNameExtensionFilter("Images (PNG, JPG, BMP, GIF)", "png", "jpg", "jpeg", "bmp", "gif"));
+        chooser.setCurrentDirectory(FileSaveSupport.preferredDirectory(
+                PREFS.get(LAST_OPEN_DIRECTORY, null),
+                new File(System.getProperty("user.home"))));
         if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return;
+        File file = chooser.getSelectedFile();
+        File directory = file.getAbsoluteFile().getParentFile();
+        if (directory != null) PREFS.put(LAST_OPEN_DIRECTORY, directory.getAbsolutePath());
         details.setText("Loading image...");
-        AsyncImageIO.load(chooser.getSelectedFile(), this::setImage,
+        AsyncImageIO.load(file, this::setImage,
                 exception -> showError("Could not open image", exception));
     }
 
