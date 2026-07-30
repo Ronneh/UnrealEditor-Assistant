@@ -15,4 +15,13 @@ public final class FileSaveSupport {
                 JOptionPane.YES_NO_OPTION,
                 JOptionPane.WARNING_MESSAGE) == JOptionPane.YES_OPTION;
     }
+
+    public static File preferredDirectory(String savedDirectory, File userHome) {
+        if (savedDirectory != null) {
+            File saved = new File(savedDirectory);
+            if (saved.isDirectory()) return saved;
+        }
+        File desktop = new File(userHome, "Desktop");
+        return desktop.isDirectory() ? desktop : userHome;
+    }
 }

@@ -28,6 +28,14 @@ public final class AssistantTheme {
 
     private AssistantTheme() { }
 
+    public static Locale supportedLocale(Locale detectedLocale) {
+        if (detectedLocale != null
+                && Locale.GERMAN.getLanguage().equalsIgnoreCase(detectedLocale.getLanguage())) {
+            return Locale.GERMAN;
+        }
+        return Locale.ENGLISH;
+    }
+
     public static void install() {
         Locale.setDefault(Locale.ENGLISH);
         try {
@@ -83,7 +91,7 @@ public final class AssistantTheme {
         UIManager.put("CheckBox.foreground", TEXT);
         UIManager.put("RadioButton.background", PANEL);
         UIManager.put("RadioButton.foreground", TEXT);
-        UIManager.put("RadioButton.disabledText", MUTED);
+        UIManager.put("RadioButton.disabledText", new Color(82, 91, 105));
         UIManager.put("RadioButton.select", ACCENT_DARK);
         UIManager.put("ScrollPane.background", PANEL);
         UIManager.put("ScrollPane.border", BorderFactory.createEmptyBorder());

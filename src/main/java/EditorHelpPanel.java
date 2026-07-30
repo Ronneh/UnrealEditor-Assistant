@@ -187,6 +187,13 @@ public final class EditorHelpPanel extends JPanel {
         isolatedStyles.addRule("td.help-icon { padding-right: 7px; }");
         isolatedStyles.addRule("td.help-icon-heading { font-weight: bold; vertical-align: middle; }");
         isolatedStyles.addRule("td.help-icon-description { padding-top: 4px; }");
+        isolatedStyles.addRule(".help-editor-header-buttons p { margin-bottom: 16px; }");
+        isolatedStyles.addRule(".help-toolbar-section, .help-toolbar-section font { "
+                + "font-size: 14px; font-weight: bold; }");
+        isolatedStyles.addRule("table.help-brush-action { margin-top: 4px; margin-bottom: 8px; }");
+        isolatedStyles.addRule("td.help-brush-action-text { vertical-align: middle; }");
+        isolatedStyles.addRule("pre.help-keymover-code { background: #1a2029; color: #dce7f5; "
+                + "border: 1px solid #3a4352; padding: 10px; }");
         htmlKit.setStyleSheet(isolatedStyles);
         article.setEditorKit(htmlKit);
 
@@ -259,7 +266,7 @@ public final class EditorHelpPanel extends JPanel {
     }
 
     private DefaultMutableTreeNode createTreeNode(JsonNode json) {
-        String title = json.path("title").asText("(untitled)");
+        String title = correctHelpTitle(json.path("title").asText("(untitled)"));
         String tutorialId = json.path("tutorialId").asText(null);
         DefaultMutableTreeNode treeNode =
                 new DefaultMutableTreeNode(new TreeEntry(title, tutorialId));
@@ -307,7 +314,7 @@ public final class EditorHelpPanel extends JPanel {
             article.setDocument(htmlDocument);
             scrollArticleToTop();
             currentDocumentId = id;
-            source.setText(document.title() + "  ·  " + document.source());
+            source.setText(correctHelpTitle(document.title()) + "  ·  " + document.source());
             updateNavigationButtons();
         } catch (Exception e) {
             showMessage("Unable to open tutorial", escapeHtml(e.getMessage()));
@@ -357,8 +364,17 @@ public final class EditorHelpPanel extends JPanel {
 
     static String prepareArticleHtml(String html) {
         Document document = Jsoup.parse(html);
+        removeLegacySiteLabels(document);
+        removeGlobalHelpArtifacts(document);
+        normalizeEzkeelCharacters(document);
         stitchSplitScreenshots(document);
         unwrapLayoutLists(document);
+        normalizeEditorHeaderButtons(document);
+        normalizeEditorToolbarButtons(document);
+        normalizeBrushActionRows(document);
+        normalizeDefinitiveUnrealEdGuide(document);
+        normalizeKeyMoverTutorial(document);
+        normalizeCenteredTutorialImages(document);
         normalizeIconEntries(document);
         normalizeLegacyIconTables(document);
         normalizeDataTables(document);
@@ -407,6 +423,347 @@ public final class EditorHelpPanel extends JPanel {
         });
         document.outputSettings().charset(java.nio.charset.StandardCharsets.UTF_8);
         return document.outerHtml();
+    }
+
+    static String correctHelpTitle(String title) {
+        return title.replace("The Definative UnrealEd 2.0 Introduction and Guide",
+                "The Definitive UnrealEd 2.0 Introduction and Guide")
+                .replace("Adavnced Brushes", "Advanced Brushes")
+                .replace("Creating Assult Levels by Silencer",
+                        "Creating Assault Levels by Silencer");
+    }
+
+    private static void removeGlobalHelpArtifacts(Document document) {
+        for (Element element : new ArrayList<>(document.getAllElements())) {
+            if (element.text().replace('\u00a0', ' ').strip().equals("[^TOP]")) {
+                if (element.normalName().matches("a|font|span")) element.remove();
+            }
+        }
+    }
+
+    private static void normalizeEzkeelCharacters(Document document) {
+        Element author = document.selectFirst("meta[name=Author]");
+        boolean ezkeel = author != null
+                && author.attr("content").toLowerCase(java.util.Locale.ROOT).contains("ezkeel");
+        ezkeel |= document.text().toLowerCase(java.util.Locale.ROOT).contains("by ezkeel");
+        if (!ezkeel) return;
+        List<TextNode> textNodes = new ArrayList<>();
+        collectTextNodes(document, textNodes);
+        for (TextNode text : textNodes) {
+            text.text(text.getWholeText()
+                    .replace("Â’", "'").replace("â€™", "'").replace("", "'")
+                    .replace("Â“", "\"").replace("Â”", "\"")
+                    .replace("â€œ", "\"").replace("â€", "\""));
+        }
+    }
+
+    private static void normalizeKeyMoverTutorial(Document document) {
+        if (!document.title().equalsIgnoreCase("Movers That Are Triggered By Keys")) return;
+
+        Element firstTable = document.body().selectFirst("> table");
+        if (firstTable != null) {
+            Node node = firstTable.previousSibling();
+            while (node != null) {
+                Node previous = node.previousSibling();
+                if (node instanceof TextNode text
+                        && text.getWholeText().replace('\u00a0', ' ').isBlank()) {
+                    node.remove();
+                } else if (node instanceof Element element
+                        && element.text().replace('\u00a0', ' ').isBlank()) {
+                    element.remove();
+                }
+                node = previous;
+            }
+        }
+
+        document.select("p").stream()
+                .filter(paragraph -> {
+                    String text = paragraph.text().replace('\u00a0', ' ').strip();
+                    return text.startsWith("Editor used:") && text.contains("Download")
+                            && text.contains(".zip");
+                })
+                .findFirst().ifPresent(Element::remove);
+
+        document.select("p").stream()
+                .filter(paragraph -> paragraph.text().contains(
+                        "www.planetunreal.com/chimeric"))
+                .filter(paragraph -> paragraph.text().toLowerCase(java.util.Locale.ROOT)
+                        .contains("found some very interesting stuff"))
+                .findFirst().ifPresent(paragraph -> {
+                    String text = paragraph.text();
+                    int sentence = text.indexOf("But at ");
+                    paragraph.text(sentence < 0 ? text : text.substring(0, sentence).stripTrailing());
+                });
+
+        Element prompt = document.select("p").stream()
+                .filter(paragraph -> paragraph.text().contains(
+                        "5. Copy the following lines into the script"))
+                .findFirst().orElse(null);
+        if (prompt == null) return;
+        Element row = prompt.closest("tr");
+        if (row == null) return;
+        Element codeRow = row.nextElementSibling();
+        while (codeRow != null && codeRow.select("font[face*=Courier]").isEmpty()) {
+            codeRow = codeRow.nextElementSibling();
+        }
+        if (codeRow == null) return;
+        Element cell = codeRow.selectFirst("td");
+        if (cell == null) return;
+        List<String> lines = cell.select("p").stream()
+                .map(Element::text)
+                .toList();
+        cell.empty().appendElement("pre").addClass("help-keymover-code")
+                .text(String.join("\n", lines));
+        codeRow.removeAttr("height");
+    }
+
+    private static void normalizeCenteredTutorialImages(Document document) {
+        String visibleTitle = document.select(".heading, body > p:first-of-type").text().strip();
+        boolean slippery = document.title().equalsIgnoreCase("Slippery Surfaces");
+        boolean waterRoom = visibleTitle.toLowerCase(java.util.Locale.ROOT)
+                .contains("a room that fills with water");
+        if (!slippery && !waterRoom) return;
+        for (Element image : new ArrayList<>(document.select("img"))) {
+            Element centered = new Element("div").addClass("help-image-only")
+                    .addClass("help-centered-tutorial-image")
+                    .attr("align", "center")
+                    .appendChild(image.clone().removeAttr("align"));
+            image.replaceWith(centered);
+        }
+    }
+
+    private static void removeLegacySiteLabels(Document document) {
+        for (Element link : new ArrayList<>(document.select("a"))) {
+            String label = link.text().replace('\u00a0', ' ').strip();
+            if (!label.equalsIgnoreCase("UED Resource Lab")
+                    && !label.equalsIgnoreCase("UT City")) {
+                continue;
+            }
+            Element line = link.closest("p, h1, h2, h3, h4, h5, h6");
+            if (line != null && line.text().replace('\u00a0', ' ').strip().equalsIgnoreCase(label)) {
+                line.remove();
+            } else {
+                link.remove();
+            }
+        }
+    }
+
+    private static void normalizeDefinitiveUnrealEdGuide(Document document) {
+        if (!document.select("h3").text()
+                .contains("THE DEFINITIVE UNREALED v2.0 INTRODUCTION AND GUIDE")) {
+            return;
+        }
+        java.util.Map<String, String> sectionTitles = java.util.Map.ofEntries(
+                java.util.Map.entry("INTRODUCTION", "Introduction:"),
+                java.util.Map.entry("WHO THIS TUTORIAL IS FOR:", "Who this Tutorial is for:"),
+                java.util.Map.entry("FIRE IT UP:", "Fire it up:"),
+                java.util.Map.entry("WHAT WE WILL BE DOING:", "What we will be doing:"),
+                java.util.Map.entry("YOUR FIRST FIVE MINUTES", "Your first five minutes:"),
+                java.util.Map.entry("THE FIRST ROOM EVER", "The first room ever:"),
+                java.util.Map.entry("LIGHTING - NORMAL AND COLORED - PART 1",
+                        "Lighting - Normal and colored - Part 1:"),
+                java.util.Map.entry("REBUILDING AND PLAYING THE LEVEL",
+                        "Rebuilding and playing the level:"),
+                java.util.Map.entry("THE CONCEPT OF INTERSECTION AND DEINTERSECTION",
+                        "The concept of Intersection and Deintersection:"),
+                java.util.Map.entry("CONNECTING TWO ROOMS & COLORED LIGHTING",
+                        "Connecting two rooms & Colored lighting:"));
+        for (Element heading : document.select("h1, h2, h3, h4, h5, h6, p")) {
+            String label = heading.text().replace('\u00a0', ' ').strip();
+            String replacement = sectionTitles.get(label.toUpperCase(java.util.Locale.ROOT));
+            if (replacement != null) {
+                heading.tagName("p").addClass("help-guide-section")
+                        .empty().appendElement("strong").text(replacement);
+            }
+        }
+
+        Element playerStartImage = document.selectFirst("img[src$=unrealed12.jpg]");
+        if (playerStartImage == null) return;
+        Element textParagraph = playerStartImage.closest("p");
+        if (textParagraph == null) return;
+        Element imageParagraph = new Element("p")
+                .addClass("help-image-only")
+                .addClass("help-playerstart-image")
+                .attr("align", "center")
+                .appendChild(playerStartImage.clone().removeAttr("align"));
+        textParagraph.before(imageParagraph);
+        Element formerWrapper = playerStartImage.parent();
+        playerStartImage.remove();
+        if (formerWrapper != null && formerWrapper.text().replace('\u00a0', ' ').isBlank()
+                && formerWrapper.select("img").isEmpty()) {
+            formerWrapper.remove();
+        }
+        textParagraph.addClass("help-playerstart-text");
+
+        normalizeGuideStep(document, "(a).", "(a). Insert Playerstart:");
+        normalizeGuideStep(document, "(b).", "(b). Rebuilding the Level:");
+        normalizeGuideStep(document, "(c).", "(c). Saving and playing:");
+    }
+
+    private static void normalizeGuideStep(Document document, String marker, String heading) {
+        Element paragraph = document.select("p").stream()
+                .filter(element -> element.text().replace('\u00a0', ' ').strip().startsWith(marker))
+                .findFirst().orElse(null);
+        if (paragraph == null) return;
+        boolean colonConsumed = false;
+        List<TextNode> orderedText = new ArrayList<>();
+        collectTextNodes(paragraph, orderedText);
+        for (TextNode text : orderedText) {
+            String value = text.getWholeText();
+            int colon = value.indexOf(':');
+            if (colon >= 0) {
+                text.text(value.substring(colon + 1).replaceFirst("^[\\s\\u00a0]+", ""));
+                colonConsumed = true;
+                break;
+            } else {
+                text.text("");
+            }
+        }
+        if (!colonConsumed) return;
+        paragraph.select("font > br:first-child").remove();
+        paragraph.prependChild(new Element("br"));
+        paragraph.prependChild(new Element("strong").addClass("help-guide-step").text(heading));
+    }
+
+    private static void collectTextNodes(Node node, List<TextNode> destination) {
+        for (Node child : node.childNodes()) {
+            if (child instanceof TextNode text) destination.add(text);
+            else collectTextNodes(child, destination);
+        }
+    }
+
+    private static void normalizeBrushActionRows(Document document) {
+        String visibleTitle = document.select(".heading").text().strip();
+        if (visibleTitle.equalsIgnoreCase("The Subtracted Brush")
+                || visibleTitle.equalsIgnoreCase("The Mover Brush")) {
+            Element actionImage = document.selectFirst(
+                    "img[src$=button_subtractq.jpg], img[src$=button_moverq.jpg]");
+            if (actionImage != null) {
+                Element caption = actionImage.nextElementSibling();
+                if (caption == null || !caption.normalName().equals("i")) {
+                    caption = actionImage.parent().nextElementSibling();
+                }
+                if (caption != null && caption.normalName().equals("i")) {
+                    Element table = new Element("table").addClass("help-brush-action")
+                            .attr("border", "0").attr("cellpadding", "0")
+                            .attr("cellspacing", "0").attr("align", "left");
+                    Element row = table.appendElement("tr").attr("height", "32");
+                    row.appendElement("td").addClass("help-brush-action-icon")
+                            .attr("valign", "middle")
+                            .appendChild(actionImage.clone().removeAttr("align"));
+                    row.appendElement("td").addClass("help-brush-action-gap")
+                            .attr("width", "4").appendText("\u00a0");
+                    Element textCell = row.appendElement("td")
+                            .addClass("help-brush-action-text").attr("valign", "middle");
+                    Element italic = caption.clone();
+                    italic.select("br").remove();
+                    textCell.appendChild(italic);
+                    actionImage.before(table);
+                    actionImage.remove();
+                    caption.remove();
+                }
+            }
+        }
+
+        if (visibleTitle.equalsIgnoreCase("The Semi-Solid Brush")
+                || visibleTitle.equalsIgnoreCase("The Non-Solid Brush")) {
+            for (Element italic : document.select("i")) {
+                for (TextNode text : new ArrayList<>(italic.textNodes())) {
+                    String value = text.getWholeText();
+                    String sentence = "This will open a dialogue window (shown below).";
+                    int end = value.indexOf(sentence);
+                    if (end < 0) continue;
+                    int split = end + sentence.length();
+                    text.text(value.substring(0, split));
+                    text.after(new TextNode(value.substring(split).replaceFirst(
+                            "^[\\s\\u00a0]+", "")));
+                    text.after(new Element("br"));
+                    return;
+                }
+            }
+        }
+    }
+
+    private static void normalizeEditorHeaderButtons(Document document) {
+        if (!document.title().equalsIgnoreCase("Editor Tool Buttons")
+                || !document.select("h1").text().contains("Editor 2.0 Toolbar Buttons")) {
+            return;
+        }
+        document.body().addClass("help-editor-header-buttons");
+
+        for (Element link : new ArrayList<>(document.select("a"))) {
+            String label = link.text().replace('\u00a0', ' ').strip();
+            if (!label.equalsIgnoreCase("unrealed.exe")
+                    && !label.equalsIgnoreCase("UED Resource Lab")) {
+                continue;
+            }
+            Element line = link.closest("p");
+            if (line != null) line.remove();
+        }
+
+        document.select("h1, h2, h3, h4, h5, h6, p").stream()
+                .filter(element -> element.text().replace('\u00a0', ' ').strip()
+                        .matches("(?i)Functions / Modes:|Brushes:|Operations:|Viewing Modes:"))
+                .forEach(element -> element.addClass("help-toolbar-section"));
+
+        for (Element paragraph : document.select("p:has(img):has(b), p:has(img):has(strong)")) {
+            paragraph.select("font").forEach(Element::unwrap);
+            removeLeadingBreaks(paragraph);
+        }
+    }
+
+    private static void normalizeEditorToolbarButtons(Document document) {
+        if (!document.title().equalsIgnoreCase("Editor Tool Buttons")
+                || !document.select("h1").text().contains("Editor 2.0 Header Buttons")) {
+            return;
+        }
+
+        for (Element link : new ArrayList<>(document.select("a"))) {
+            if (!link.text().replace('\u00a0', ' ').strip().equalsIgnoreCase("UED Resource Lab")) {
+                continue;
+            }
+            Element line = link.closest("p");
+            if (line != null) line.remove();
+        }
+
+        document.select("h1, h2, h3, h4, h5, h6, p").stream()
+                .filter(element -> element.text().replace('\u00a0', ' ').strip()
+                        .equalsIgnoreCase("Functions:"))
+                .forEach(element -> element.addClass("help-toolbar-section"));
+
+        for (Element paragraph : new ArrayList<>(
+                document.select("p:has(img):has(b), p:has(img):has(strong)"))) {
+            paragraph.select("font").forEach(Element::unwrap);
+            removeLeadingBreaks(paragraph);
+            Element heading = paragraph.selectFirst("b, strong");
+            if (heading == null) continue;
+            String label = heading.text().strip().replaceFirst("\\.$", "");
+
+            if (label.matches("(?i)Search for Actors|Group Browser|Music Browser")) {
+                List<Element> images = new ArrayList<>(paragraph.select("img"));
+                Element insertionPoint = paragraph;
+                for (int index = 1; index < images.size(); index++) {
+                    Element image = images.get(index);
+                    Element imageLine = new Element("p")
+                            .addClass("help-toolbar-screenshot")
+                            .addClass("help-image-only")
+                            .attr("align", "center")
+                            .appendChild(image.clone().removeAttr("align"));
+                    insertionPoint.after(imageLine);
+                    insertionPoint = imageLine;
+                    image.remove();
+                }
+            } else if (label.equalsIgnoreCase("Build Options")) {
+                Element description = paragraph.nextElementSibling();
+                if (description != null && description.normalName().equals("p")) {
+                    paragraph.appendText(" ");
+                    for (Node node : new ArrayList<>(description.childNodes())) {
+                        paragraph.appendChild(node.clone());
+                    }
+                    description.remove();
+                }
+            }
+        }
     }
 
     private static void normalizeTargetedInterfaceMarkup(Document document) {
@@ -1146,7 +1503,7 @@ public final class EditorHelpPanel extends JPanel {
             JLabel label = (JLabel) super.getListCellRendererComponent(
                     list, value, index, selected, hasFocus);
             if (value instanceof EditorHelpSearch.SearchResult result) {
-                label.setText("<html><b>" + escapeHtml(result.title()) + "</b><br>"
+                label.setText("<html><b>" + escapeHtml(correctHelpTitle(result.title())) + "</b><br>"
                         + "<span style='color:#9ca7b8'>" + escapeHtml(result.categoryPath())
                         + "</span><br>" + escapeHtml(result.excerpt()) + "</html>");
                 label.setBorder(BorderFactory.createEmptyBorder(7, 8, 7, 8));

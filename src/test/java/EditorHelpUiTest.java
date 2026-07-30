@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.awt.image.BufferedImage;
+import java.util.List;
 import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -313,6 +314,222 @@ class EditorHelpUiTest {
         assertTrue(entry.html().indexOf("Search for Actors:") < entry.html().indexOf("search.gif"));
         assertEquals("middle", entry.selectFirst("td.help-icon-heading").attr("valign"));
         assertEquals("middle", entry.selectFirst("td.help-icon").attr("valign"));
+    }
+
+    @Test
+    void formatsEditorHeaderButtonSpecialCasesAndRemovesLegacyLabels() {
+        String cleaned = EditorHelpPanel.prepareArticleHtml("""
+                <html><head><title>Editor Tool Buttons</title></head><body>
+                <h1>Editor 2.0 Toolbar Buttons</h1>
+                <p><a><u>unrealed.exe</u></a></p>
+                <p><a><u>UED Resource Lab</u></a></p>
+                <h3><font size="3">Functions / Modes:</font></h3>
+                <h3><font size="3">Brushes:</font></h3>
+                <p><b><font size="3">Operations:</font></b></p>
+                <p><b><font size="3">Viewing Modes:</font></b></p>
+                <p><font><img src="vertex.jpg" width="34" height="33">
+                <b>Vertex Editing.</b> Vertex description.</font></p>
+                <p><font><img src="scale.jpg" width="31" height="30">
+                <b>Scale brush.</b> Scale description.</font></p>
+                <p><br><img src="last.jpg" width="33" height="31">
+                <b>Change Camera Speed.</b> Last description.</p>
+                </body></html>
+                """);
+        var document = org.jsoup.Jsoup.parse(cleaned);
+
+        assertTrue(document.body().hasClass("help-editor-header-buttons"));
+        assertTrue(document.text().contains("Functions / Modes:"));
+        assertEquals(List.of("Functions / Modes:", "Brushes:", "Operations:", "Viewing Modes:"),
+                document.select(".help-toolbar-section").eachText());
+        assertTrue(!document.text().contains("unrealed.exe"));
+        assertTrue(!document.text().contains("UED Resource Lab"));
+        assertEquals(3, document.select("table.help-icon-entry").size());
+        assertEquals(List.of("Vertex Editing", "Scale brush", "Change Camera Speed"),
+                document.select("td.help-icon-heading").eachText());
+        assertTrue(document.select("td.help-icon-heading[valign=middle]").size() == 3);
+        assertTrue(document.select("td.help-icon[valign=middle]").size() == 3);
+        assertTrue(document.select("p.help-icon-description").size() == 3);
+    }
+
+    @Test
+    void formatsEditorToolbarButtonsAndCentersBrowserScreenshots() {
+        String cleaned = EditorHelpPanel.prepareArticleHtml("""
+                <html><head><title>Editor Tool Buttons</title></head><body>
+                <h1>Editor 2.0 Header Buttons</h1>
+                <p><a><u>UED Resource Lab</u></a></p>
+                <h3><font size="3">Functions:</font></h3>
+                <p><font><img src="open.jpg"><b>Open.</b> Open description.</font></p>
+                <p><font><img src="save.jpg"><b>Save.</b> Save description.</font></p>
+                <p><img src="search-icon.jpg"><b>Search for Actors.</b> Search description.
+                <br><img src="search-window.gif"></p>
+                <p><img src="group-icon.jpg"><b>Group Browser.</b> Group description.
+                <br><img src="group-window.gif"></p>
+                <p><img src="music-icon.jpg"><b>Music Browser.</b> Music description.
+                <br><img src="music-window.gif"><img src="music-import.gif"></p>
+                <p><img src="build.jpg"><b>Build Options.</b>&nbsp;</p>
+                <p>Build options description.</p>
+                </body></html>
+                """);
+        var document = org.jsoup.Jsoup.parse(cleaned);
+
+        assertTrue(!document.text().contains("UED Resource Lab"));
+        assertTrue(document.selectFirst("h3").hasClass("help-toolbar-section"));
+        assertEquals(List.of("Open", "Save", "Search for Actors", "Group Browser",
+                        "Music Browser", "Build Options"),
+                document.select("td.help-icon-heading").eachText());
+        assertEquals(4, document.select("p.help-toolbar-screenshot").size());
+        assertEquals(List.of("search-window.gif", "group-window.gif",
+                        "music-window.gif", "music-import.gif"),
+                document.select("p.help-toolbar-screenshot img").eachAttr("src"));
+        assertTrue(document.select("p.help-toolbar-screenshot[align=center]").size() == 4);
+        assertEquals("Build options description.",
+                document.select("p.help-icon-description").last().text());
+    }
+
+    @Test
+    void removesLegacySiteLabelsFromEveryArticle() {
+        String cleaned = EditorHelpPanel.prepareArticleHtml("""
+                <html><body>
+                <p><a><u>UED Resource Lab</u></a></p>
+                <h1><a><u>UT City</u></a></h1>
+                <p>By: Mapper <a><u>UT City</u></a></p>
+                <p>A normal mention of UT City remains article text.</p>
+                </body></html>
+                """);
+        var document = org.jsoup.Jsoup.parse(cleaned);
+        assertTrue(document.select("a:contains(UED Resource Lab), a:contains(UT City)").isEmpty());
+        assertTrue(!document.text().contains("UED Resource Lab"));
+        assertEquals(1, document.select("p:contains(By: Mapper)").size());
+        assertTrue(document.text().contains("A normal mention of UT City remains article text."));
+    }
+
+    @Test
+    void formatsDefinitiveGuideHeadingsAndSeparatesPlayerStartImage() {
+        String cleaned = EditorHelpPanel.prepareArticleHtml("""
+                <html><body>
+                <h3>THE DEFINITIVE UNREALED v2.0 INTRODUCTION AND GUIDE</h3>
+                <h3><font>INTRODUCTION</font></h3>
+                <p><b>WHO THIS TUTORIAL IS FOR:</b></p>
+                <p><b>FIRE IT UP:</b></p>
+                <p>Introduction text.</p>
+                <p><font><br>(a). <u><img src="../assets/UED/unrealed12.jpg"></u>
+                INSERT PLAYERSTART: The player start is an actor.</font></p>
+                <p><font>(b). REBUILDING THE LEVEL: Rebuild text.</font></p>
+                <p><font>(c). SAVING AND PLAYING: Save text.</font></p>
+                <h3><font>THE CONCEPT OF INTERSECTION AND DEINTERSECTION</font></h3>
+                <h3><font>CONNECTING TWO ROOMS &amp; COLORED LIGHTING</font></h3>
+                </body></html>
+                """);
+        var document = org.jsoup.Jsoup.parse(cleaned);
+
+        assertEquals(List.of("Introduction:", "Who this Tutorial is for:", "Fire it up:",
+                        "The concept of Intersection and Deintersection:",
+                        "Connecting two rooms & Colored lighting:"),
+                document.select("p.help-guide-section").eachText());
+        assertEquals(5, document.select("p.help-guide-section > strong").size());
+        assertEquals("center", document.selectFirst("p.help-playerstart-image").attr("align"));
+        assertTrue(document.selectFirst(".help-playerstart-image img").attr("src")
+                .endsWith("unrealed12.jpg"));
+        assertTrue(document.selectFirst("p.help-playerstart-text").text()
+                .startsWith("(a). Insert Playerstart: The player start is an actor."));
+        assertEquals(List.of("(a). Insert Playerstart:", "(b). Rebuilding the Level:",
+                        "(c). Saving and playing:"),
+                document.select("strong.help-guide-step").eachText());
+        assertEquals(3, document.select("strong.help-guide-step + br").size());
+        assertEquals("The Definitive UnrealEd 2.0 Introduction and Guide by Machismo (2.0)",
+                EditorHelpPanel.correctHelpTitle(
+                        "The Definative UnrealEd 2.0 Introduction and Guide by Machismo (2.0)"));
+    }
+
+    @Test
+    void alignsBrushActionCaptionsAndBreaksSpecialBrushInstructions() {
+        String subtracted = EditorHelpPanel.prepareArticleHtml("""
+                <html><head><title>The Subtracted Brush</title></head><body>
+                <p class="heading">The Subtracted Brush</p>
+                <p>Instruction.<br><br><img src="button_subtractq.jpg" align="left"
+                width="32" height="32"><i>This will create the Subtracted brush.</i></p>
+                </body></html>
+                """);
+        var subtractedDocument = org.jsoup.Jsoup.parse(subtracted);
+        assertEquals("4", subtractedDocument.selectFirst(".help-brush-action-gap").attr("width"));
+        assertEquals("middle",
+                subtractedDocument.selectFirst(".help-brush-action-text").attr("valign"));
+        assertEquals("This will create the Subtracted brush.",
+                subtractedDocument.selectFirst(".help-brush-action-text").text());
+
+        String semiSolid = EditorHelpPanel.prepareArticleHtml("""
+                <html><head><title>The Semi</title></head><body>
+                <p class="heading">The Semi-Solid Brush</p>
+                <p><i>This will open a dialogue window (shown below). Select
+                <b>Semi Solid</b> from the options.</i></p>
+                </body></html>
+                """);
+        var semiSolidDocument = org.jsoup.Jsoup.parse(semiSolid);
+        assertEquals("br", semiSolidDocument.selectFirst("i").child(0).normalName());
+        assertTrue(semiSolidDocument.selectFirst("i").html()
+                .contains("(shown below).<br>"));
+    }
+
+    @Test
+    void correctsHelpNavigationTyposAndGlobalTopMarkers() {
+        assertEquals("Advanced Brushes", EditorHelpPanel.correctHelpTitle("Adavnced Brushes"));
+        assertEquals("Creating Assault Levels by Silencer (2.0)",
+                EditorHelpPanel.correctHelpTitle(
+                        "Creating Assult Levels by Silencer (2.0)"));
+        String cleaned = EditorHelpPanel.prepareArticleHtml("""
+                <html><body><table><tr><td><a><font>[^TOP]</font></a></td></tr></table>
+                </body></html>
+                """);
+        assertTrue(!org.jsoup.Jsoup.parse(cleaned).text().contains("[^TOP]"));
+    }
+
+    @Test
+    void cleansAndFormatsKeyMoverTutorial() {
+        String cleaned = EditorHelpPanel.prepareArticleHtml("""
+                <html><head><title>Movers That Are Triggered By Keys</title></head><body>
+                <p>&nbsp;</p><p>&nbsp;</p><table><tr><td><p><b>Movers That Are
+                Triggered By Keys</b></p></td></tr>
+                <tr><td><p>Editor used: Unrealed2.0 Download .zip</p>
+                <p>Keep this sentence. But at www.planetunreal.com/chimeric I found
+                some very Interesting stuff.</p></td></tr>
+                <tr><td><p>5. Copy the following lines into the script
+                (overwriting all the text there is):</p></td></tr>
+                <tr><td>&nbsp;</td></tr>
+                <tr height="100"><td><p><font face="Courier New">class KeyMover;</font></p>
+                <p><font face="Courier New">{</font></p>
+                <p><font face="Courier New">}</font></p></td></tr></table>
+                </body></html>
+                """);
+        var document = org.jsoup.Jsoup.parse(cleaned);
+        assertTrue(document.body().children().first().normalName().equals("table"));
+        assertTrue(!document.text().contains("Editor used:"));
+        assertTrue(!document.text().contains("Interesting stuff"));
+        assertTrue(document.text().contains("Keep this sentence."));
+        assertEquals("class KeyMover;\n{\n}", document.selectFirst("pre.help-keymover-code").text());
+    }
+
+    @Test
+    void centersRequestedTutorialImagesAndRepairsEzkeelQuotes() {
+        String slippery = EditorHelpPanel.prepareArticleHtml("""
+                <html><head><title>Slippery Surfaces</title></head><body>
+                <p class="heading">Slippery Surfaces</p>
+                <p>Before <img src="one.jpg"> after <img src="two.jpg"></p>
+                </body></html>
+                """);
+        assertEquals(2, org.jsoup.Jsoup.parse(slippery)
+                .select("div.help-centered-tutorial-image[align=center]").size());
+
+        String water = EditorHelpPanel.prepareArticleHtml("""
+                <html><head><meta name="Author" content="EZkeel"><title>Smashing Windows</title>
+                </head><body><p><b>A room that fills with water</b></p>
+                <p><img src="water.jpg">If youÂ’re careful, donÂ’t stop.</p>
+                </body></html>
+                """);
+        var waterDocument = org.jsoup.Jsoup.parse(water);
+        assertEquals(1, waterDocument.select(
+                "div.help-centered-tutorial-image[align=center]").size());
+        assertTrue(waterDocument.text().contains("If you're careful, don't stop."));
+        assertTrue(!waterDocument.text().contains("Â"));
     }
 
     @Test

@@ -4,10 +4,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Color;
 import java.awt.Image;
+import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Locale;
 import javax.swing.JComponent;
 import javax.swing.JTextArea;
 import javax.swing.JTextPane;
@@ -127,6 +130,39 @@ class CoreRegressionTest {
         assertEquals(output.getRGB(0, 0), output.getRGB(3, 0));
         assertEquals(output.getRGB(0, 0), output.getRGB(0, 3));
         assertEquals(output.getRGB(1, 1), output.getRGB(2, 2));
+    }
+
+    @Test
+    void screenshotMakerUsesLargestPossibleSquareCrop() {
+        BufferedImage square = new BufferedImage(2048, 2048, BufferedImage.TYPE_INT_RGB);
+        BufferedImage widescreen = new BufferedImage(2560, 1440, BufferedImage.TYPE_INT_RGB);
+
+        assertEquals(new Rectangle(0, 0, 2048, 2048),
+                ScreenshotMakerPanel.initialCropFor(square));
+        assertEquals(new Rectangle(560, 0, 1440, 1440),
+                ScreenshotMakerPanel.initialCropFor(widescreen));
+    }
+
+    @Test
+    void screenshotMakerExportDirectoryPrefersSavedLocationThenDesktop() throws Exception {
+        File home = java.nio.file.Files.createTempDirectory("screenshot-maker-home").toFile();
+        File desktop = new File(home, "Desktop");
+        File saved = new File(home, "Saved");
+        assertTrue(desktop.mkdir());
+        assertTrue(saved.mkdir());
+
+        assertEquals(saved, FileSaveSupport.preferredDirectory(saved.getPath(), home));
+        assertEquals(desktop, FileSaveSupport.preferredDirectory(null, home));
+        assertEquals(desktop, FileSaveSupport.preferredDirectory(
+                new File(home, "missing").getPath(), home));
+    }
+
+    @Test
+    void weatherUsesGermanOrFallsBackToEnglish() {
+        assertEquals(Locale.GERMAN, WeatherPanel.localeFor(Locale.GERMANY));
+        assertEquals(Locale.ENGLISH, WeatherPanel.localeFor(Locale.US));
+        assertEquals(Locale.ENGLISH, WeatherPanel.localeFor(Locale.FRANCE));
+        assertEquals(Locale.ENGLISH, WeatherPanel.localeFor(null));
     }
 
     private static Object shortcut(JTextArea area, String keyStroke) {

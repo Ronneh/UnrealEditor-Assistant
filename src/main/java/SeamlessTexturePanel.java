@@ -13,6 +13,8 @@ import java.awt.event.ActionEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
+import java.util.prefs.Preferences;
 import javax.imageio.ImageIO;
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
@@ -26,11 +28,14 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.KeyStroke;
+import javax.swing.TransferHandler;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 /** Creates a square tileable texture by mirroring a centered source crop. */
 public final class SeamlessTexturePanel extends JPanel {
     private static final Integer[] OUTPUT_SIZES = { 128, 256, 512, 1024 };
+    private static final Preferences PREFS = Preferences.userNodeForPackage(SeamlessTexturePanel.class);
+    private static final String LAST_OPEN_DIRECTORY = "lastOpenDirectory";
     private final ImageCanvas inputCanvas = new ImageCanvas("Load or paste a source image.");
     private final ImageCanvas outputCanvas = new ImageCanvas("The seamless result will appear here.");
     private final JComboBox<Integer> outputSize = new JComboBox<>(OUTPUT_SIZES);
@@ -44,6 +49,7 @@ public final class SeamlessTexturePanel extends JPanel {
         setBorder(BorderFactory.createEmptyBorder(12, 14, 14, 14));
         add(createControls(), BorderLayout.NORTH);
         add(createWorkspace(), BorderLayout.CENTER);
+        inputCanvas.setTransferHandler(new ImageDropHandler());
         installPasteShortcut();
     }
 
@@ -100,13 +106,22 @@ public final class SeamlessTexturePanel extends JPanel {
         JFileChooser chooser = new JFileChooser();
         chooser.setFileFilter(new FileNameExtensionFilter(
                 "Images (PNG, JPG, BMP)", "png", "jpg", "jpeg", "bmp"));
+        chooser.setCurrentDirectory(FileSaveSupport.preferredDirectory(
+                PREFS.get(LAST_OPEN_DIRECTORY, null),
+                new File(System.getProperty("user.home"))));
         if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return;
         File file = chooser.getSelectedFile();
+        rememberOpenDirectory(file);
         status.setForeground(AssistantTheme.MUTED);
         status.setText("Loading " + file.getName() + "...");
         AsyncImageIO.load(file,
                 image -> setSource(image, file.getName()),
                 exception -> showInputError("The selected file could not be loaded."));
+    }
+
+    private void rememberOpenDirectory(File file) {
+        File directory = file.getAbsoluteFile().getParentFile();
+        if (directory != null) PREFS.put(LAST_OPEN_DIRECTORY, directory.getAbsolutePath());
     }
 
     private void pasteImage() {
@@ -245,6 +260,41 @@ public final class SeamlessTexturePanel extends JPanel {
             g.setColor(AssistantTheme.BORDER);
             g.drawRect(x, y, width - 1, height - 1);
             g.dispose();
+        }
+    }
+
+    private final class ImageDropHandler extends TransferHandler {
+        @Override public boolean canImport(TransferSupport support) {
+            return support.isDataFlavorSupported(DataFlavor.imageFlavor)
+                    || support.isDataFlavorSupported(DataFlavor.javaFileListFlavor);
+        }
+
+        @Override public boolean importData(TransferSupport support) {
+            if (!canImport(support)) return false;
+            try {
+                if (support.isDataFlavorSupported(DataFlavor.imageFlavor)) {
+                    Object value = support.getTransferable().getTransferData(DataFlavor.imageFlavor);
+                    if (value instanceof Image image) {
+                        setSource(ImageToolSupport.toBuffered(image), "drag and drop");
+                        return true;
+                    }
+                }
+                @SuppressWarnings("unchecked")
+                List<File> files = (List<File>) support.getTransferable()
+                        .getTransferData(DataFlavor.javaFileListFlavor);
+                if (files.isEmpty()) return false;
+                File file = files.get(0);
+                rememberOpenDirectory(file);
+                status.setForeground(AssistantTheme.MUTED);
+                status.setText("Loading " + file.getName() + "...");
+                AsyncImageIO.load(file,
+                        image -> setSource(image, file.getName()),
+                        exception -> showInputError("The dropped file could not be loaded."));
+                return true;
+            } catch (Exception exception) {
+                showInputError("The dropped content is not a supported image.");
+                return false;
+            }
         }
     }
 
