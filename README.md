@@ -7,11 +7,12 @@ easy-to-navigate application.
 
 ## Download
 
-[Download Unreal Editor 2 Assistant v1 for Windows (.zip)](./Unreal%20Editor%202%20Assistant%20v1.zip)
+[Download the latest Windows release](https://github.com/Ronneh/UnrealEditor-Assistant/releases/latest)
 
-Extract the complete ZIP archive and start **Unreal Editor 2 Assistant**. Keep
-the extracted folders together so the application can find its runtime and
-offline Editor Help files.
+Open the release page, download **Unreal Editor 2 Assistant v1.zip** from its
+**Assets** section, and extract the complete archive. Start
+**Unreal Editor 2 Assistant** and keep the extracted folders together so the
+application can find its runtime and offline Editor Help files.
 
 ## Features
 
