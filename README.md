@@ -24,7 +24,7 @@ Open the release page, download **Unreal Editor 2 Assistant v1.zip** from its
   compile the project and execute its tests.
 - Run `.\mvnw.cmd package` to create the application JAR in the `target` folder.
 - Start the application from the source tree with
-  `.\mvnw.cmd exec:java -Dexec.mainClass=UnrealEditor2Assistant`.
+  `.\mvnw.cmd exec:java "-Dexec.mainClass=UnrealEditor2Assistant"`.
 
 ## Features
 
