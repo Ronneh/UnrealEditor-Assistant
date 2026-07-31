@@ -2,65 +2,68 @@
 
 Unreal Editor 2 Assistant is a Windows desktop toolkit for creating and
 maintaining Unreal Tournament 1999 maps. It brings frequently used mapping,
-image, scripting, documentation, and planning tools together in one dark,
-easy-to-navigate application.
+image, scripting, documentation, and planning tools together in
+one easy-to-navigate application.
 
 ## Download
 
 [Download the latest Windows release](https://github.com/Ronneh/UnrealEditor-Assistant/releases/latest)
 
 Open the release page, download **Unreal Editor 2 Assistant v1.zip** from its
-**Assets** section, and extract the complete archive. Start
-**Unreal Editor 2 Assistant** and keep the extracted folders together so the
-application can find its runtime and offline Editor Help files.
+**Assets** section, **extract** the complete archive and run **Unreal Editor 2 Assistant.exe**.
+
+## Development setup
+
+- Install **Git** and a **JDK 17**.
+- Clone the repository, e.g., with `git clone https://github.com/Ronneh/UnrealEditor-Assistant.git`.
+- Open the cloned **UnrealEditor-Assistant** root folder (the folder containing
+  `pom.xml`) in an IDE with Maven support, such as IntelliJ IDEA, Eclipse, or
+  Visual Studio Code with the Java extensions.
+- In PowerShell or Command Prompt, change to the project folder location, e.g., 
+  with `cd source\repos\UnrealEditor-Assistant` and run `.\mvnw.cmd test`  to 
+  compile the project and execute its tests.
+- Run `.\mvnw.cmd package` to create the application JAR in the `target` folder.
+- Start the application from the source tree with
+  `.\mvnw.cmd exec:java -Dexec.mainClass=UnrealEditor2Assistant`.
 
 ## Features
 
-### Map building and maintenance
+### Map building and duplicating
 
-- **Brush Generator** creates grid-aligned polygon brushes for common CSG
+- **Brush Generator** creates grid-aligned polygon cylinder brushes for common CSG
   shapes and exports them as T3D data.
 - **Brush Optimizer** checks pasted T3D brushes for off-grid vertices,
   planarity problems, and alignment issues. Every proposed change can be
   reviewed before the corrected map data is copied.
-- **Double** prepares duplicated CTF or team-based map content for the opposite
-  team by updating PlayerStarts, FlagBases, Movers, tags, and events.
+- **Double** prepares duplicated team-based map content for the opposite
+  team by updating FlagBases, PlayerStarts, Tags, and Events.
 
-### Screenshots and textures
+### Screenshots and Textures
 
-- **Screenshot Maker** imports four map screenshots, lets you choose each
-  square crop, arrange the four panels, add styled labels, and export a PNG up
-  to 2048 × 2048 pixels.
-- **Image Resizer** opens, pastes, or accepts dropped images and turns them into
-  square, Unreal-friendly PNG textures. Brightness, contrast, saturation, hue,
-  and sharpness can be adjusted before export.
-- **Seamless Texture** creates a mirrored, tileable texture from a source image
-  and supports opening, pasting, and drag-and-drop.
+- **Screenshot Maker** imports 4 map screenshots, lets you choose each
+  square crop, arrange the four panels, add styled labels, and export a PNG file.
+- **Image Resizer** opens images and turns them into square, Unreal-friendly
+  PNG textures. Brightness, contrast, saturation, hue, and sharpness can be
+  adjusted before export.
+- **Seamless Texture** creates a mirrored, tileable texture from a source image.
 
-### UnrealScript and reference material
+### UnrealScript and Editor Guide
 
 - **Scripting** provides an UnrealScript editor, reusable examples, basic
   checks, and UCC package compilation support.
-- **Editor Guide** contains a searchable offline collection of Unreal Editor 2
-  reference pages and community tutorials, with contents, search results, and
-  Back/Forward/Home navigation.
+- **Editor Guide** contains a big collection of Unreal Editor 2
+  reference pages and community tutorials, with contents and search.
 
 ### Planning and daily information
 
-- **To-Do List** organizes map notes and tasks in folders, with rich-text
-  editing and automatic local storage.
-- **Weather** shows a seven-day forecast, hourly temperature graph, humidity,
-  wind, weather conditions, and Celsius/Fahrenheit switching for a chosen
-  city. Weather and date labels use the same supported language; English is
-  used when the system language cannot be identified.
+- **To-Do List** organizes notes and tasks in folders, with rich-text editing
+  and automatic local storage.
+- **Weather** shows a seven-day forecast.
 
 ## Notes
 
-- The application is intended for Unreal Tournament 1999 and Unreal Editor 2.
-- Editor Help works offline after the included content pack has been installed.
+- The application is intended for the game Unreal Tournament 1999 and Unreal Editor 2.
 - Weather information requires an internet connection.
-- This repository is published as an application project and is not currently
-  seeking external contributions.
 
 ## Third-party services and acknowledgements
 
@@ -73,7 +76,7 @@ open-source projects, and community resources:
 - **Apache Lucene** powers the local full-text search in Editor Help.
 - **jsoup** is used to import, clean, and present the historical HTML help
   pages.
-- **Jackson** reads and writes the Editor Help content-pack metadata.
+- **Jackson** reads and writes the Editor Guide content-pack metadata.
 - **Java Native Access (JNA)** enables Windows-specific desktop integration.
 - **The Unreal and Unreal Tournament editing community** created the reference
   guides and tutorials preserved in Editor Help. Thanks to the original
@@ -88,4 +91,4 @@ endorsed by Epic Games or the third-party projects listed above.
 
 ## Author
 
-VRN|Ron
+Developed by VRN|Ron.
