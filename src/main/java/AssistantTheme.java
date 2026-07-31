@@ -12,8 +12,6 @@ import javax.swing.plaf.basic.BasicSplitPaneUI;
 
 /** Shared colors and Swing defaults for the dark theme. */
 public final class AssistantTheme {
-    /** Locale detected before Swing is switched to its English UI resources. */
-    public static final Locale USER_LOCALE = Locale.getDefault();
     public static final Color BACKGROUND = new Color(20, 24, 31);
     public static final Color HEADER = new Color(25, 31, 41);
     public static final Color PANEL = new Color(30, 36, 46);
@@ -27,14 +25,6 @@ public final class AssistantTheme {
     public static final Color ACCENT_DARK = new Color(39, 87, 139);
 
     private AssistantTheme() { }
-
-    public static Locale supportedLocale(Locale detectedLocale) {
-        if (detectedLocale != null
-                && Locale.GERMAN.getLanguage().equalsIgnoreCase(detectedLocale.getLanguage())) {
-            return Locale.GERMAN;
-        }
-        return Locale.ENGLISH;
-    }
 
     public static void install() {
         Locale.setDefault(Locale.ENGLISH);

@@ -14,6 +14,7 @@ import java.awt.RenderingHints;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import javax.swing.BorderFactory;
 import javax.swing.AbstractButton;
@@ -36,8 +37,7 @@ public final class UnrealEditor2Assistant {
     private static final String HOME = "home";
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
     private static final DateTimeFormatter DATE = DateTimeFormatter
-            .ofPattern("EEEE, d MMMM uuuu",
-                    AssistantTheme.supportedLocale(AssistantTheme.USER_LOCALE));
+            .ofPattern("EEEE, d MMMM uuuu", Locale.ENGLISH);
 
     private final CardLayout cardLayout = new CardLayout();
     private final JPanel cards = new JPanel(cardLayout);

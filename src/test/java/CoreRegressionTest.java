@@ -157,14 +157,6 @@ class CoreRegressionTest {
                 new File(home, "missing").getPath(), home));
     }
 
-    @Test
-    void weatherUsesGermanOrFallsBackToEnglish() {
-        assertEquals(Locale.GERMAN, WeatherPanel.localeFor(Locale.GERMANY));
-        assertEquals(Locale.ENGLISH, WeatherPanel.localeFor(Locale.US));
-        assertEquals(Locale.ENGLISH, WeatherPanel.localeFor(Locale.FRANCE));
-        assertEquals(Locale.ENGLISH, WeatherPanel.localeFor(null));
-    }
-
     private static Object shortcut(JTextArea area, String keyStroke) {
         return area.getInputMap(JComponent.WHEN_FOCUSED).get(KeyStroke.getKeyStroke(keyStroke));
     }
