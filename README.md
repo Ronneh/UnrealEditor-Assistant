@@ -12,6 +12,20 @@ one easy-to-navigate application.
 Open the release page, download **Unreal Editor 2 Assistant v1.zip** from its
 **Assets** section, **extract** the complete archive and run **Unreal Editor 2 Assistant.exe**.
 
+## Development setup
+
+- Install **Git** and a **JDK 17**.
+- Clone the repository, e.g., with `git clone https://github.com/Ronneh/UnrealEditor-Assistant.git`.
+- Open the cloned **UnrealEditor-Assistant** root folder (the folder containing
+  `pom.xml`) in an IDE with Maven support, such as IntelliJ IDEA, Eclipse, or
+  Visual Studio Code with the Java extensions.
+- In PowerShell or Command Prompt, change to the project folder location, e.g., 
+  with `cd source\repos\UnrealEditor-Assistant` and run `.\mvnw.cmd test`  to 
+  compile the project and execute its tests.
+- Run `.\mvnw.cmd package` to create the application JAR in the `target` folder.
+- Start the application from the source tree with
+  `.\mvnw.cmd exec:java -Dexec.mainClass=UnrealEditor2Assistant`.
+
 ## Features
 
 ### Map building and duplicating
