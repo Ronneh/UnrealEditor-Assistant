@@ -87,7 +87,7 @@ public final class MapDoublerPanel extends JPanel {
         JPanel messages = new JPanel();
         messages.setOpaque(false);
         messages.setLayout(new BoxLayout(messages, BoxLayout.Y_AXIS));
-        JLabel note = new JLabel("All Events and Tags in the map must contain the word 'red'.");
+        JLabel note = new JLabel("All necessary Events and Tags in the map must contain the word 'red'!");
         note.setForeground(new Color(235, 184, 80));
         messages.add(note);
         status.setForeground(AssistantTheme.MUTED);

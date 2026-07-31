@@ -23,7 +23,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.prefs.Preferences;
-import java.util.Locale;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.Icon;
@@ -41,9 +40,9 @@ public final class WeatherPanel extends JPanel {
     private final JTextField cityField = new JTextField(SETTINGS.get("weather.city", "Berlin"), 10);
     private final JButton unitButton = new JButton("°C");
     private final JLabel title = new JLabel();
-    private final JLabel current = new JLabel(localized("Loading weather...", "Wetter wird geladen..."));
+    private final JLabel current = new JLabel("Loading weather...");
     private final JLabel condition = new JLabel(" ");
-    private final JLabel status = new JLabel(localized("Weather data: Open-Meteo", "Wetterdaten: Open-Meteo"));
+    private final JLabel status = new JLabel("Weather data: Open-Meteo");
     private final ForecastGraph graph = new ForecastGraph();
     private final JPanel days = new JPanel(new GridLayout(1, 7, 4, 0));
     private final JPanel cityEditor = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
@@ -68,7 +67,7 @@ public final class WeatherPanel extends JPanel {
         JButton edit = new JButton(new PencilIcon());
         edit.setMargin(new java.awt.Insets(2, 5, 2, 5));
         edit.setPreferredSize(new Dimension(30, 24));
-        edit.setToolTipText(localized("Change city", "Stadt ändern"));
+        edit.setToolTipText("Change city");
         edit.addActionListener(event -> {
             cityEditor.setVisible(!cityEditor.isVisible());
             if (cityEditor.isVisible()) {
@@ -79,7 +78,7 @@ public final class WeatherPanel extends JPanel {
         });
         cityEditor.setOpaque(false);
         cityEditor.setVisible(false);
-        JButton save = new JButton(localized("Save", "Speichern"));
+        JButton save = new JButton("Save");
         save.addActionListener(event -> saveCity());
         cityField.addActionListener(event -> saveCity());
         cityEditor.add(cityField);
@@ -133,7 +132,7 @@ public final class WeatherPanel extends JPanel {
     }
 
     private static String weatherTitle(String city) {
-        return "<html>" + localized("Weather in ", "Wetter in ") + "<b>"
+        return "<html>Weather in <b>"
                 + city.replace("&", "&amp;").replace("<", "&lt;") + "</b></html>";
     }
 
@@ -141,7 +140,7 @@ public final class WeatherPanel extends JPanel {
         String requestedCity = cityField.getText().trim();
         if (requestedCity.isEmpty()) return;
         status.setForeground(AssistantTheme.MUTED);
-        status.setText(localized("Loading forecast...", "Vorhersage wird geladen..."));
+        status.setText("Loading forecast...");
         int generation = ++requestGeneration;
         Thread worker = new Thread(() -> load(requestedCity, generation), "weather-loader");
         worker.setDaemon(true);
@@ -152,7 +151,7 @@ public final class WeatherPanel extends JPanel {
         try {
             String query = URLEncoder.encode(requestedCity, StandardCharsets.UTF_8);
             String geo = get(HTTP_CLIENT, "https://geocoding-api.open-meteo.com/v1/search?name="
-                    + query + "&count=1&language=" + weatherLocale().getLanguage() + "&format=json");
+                    + query + "&count=1&language=en&format=json");
             String name = stringValue(geo, "name");
             double latitude = numberValue(geo, "latitude");
             double longitude = numberValue(geo, "longitude");
@@ -184,16 +183,14 @@ public final class WeatherPanel extends JPanel {
                 title.setText(weatherTitle(requestedCity));
                 selectedDay = 0;
                 status.setForeground(AssistantTheme.MUTED);
-                status.setText(localized("Weather data: Open-Meteo", "Wetterdaten: Open-Meteo"));
+                status.setText("Weather data: Open-Meteo");
                 updateView();
             });
         } catch (Exception exception) {
             SwingUtilities.invokeLater(() -> {
                 if (generation != requestGeneration) return;
                 status.setForeground(new Color(225, 105, 105));
-                status.setText(localized(
-                        "Weather is currently unavailable. Check the city or connection.",
-                        "Wetter ist derzeit nicht verfügbar. Bitte Stadt oder Verbindung prüfen."));
+                status.setText("Weather is currently unavailable. Check the city or connection.");
                 current.setText("—");
                 condition.setText(requestedCity);
             });
@@ -221,8 +218,8 @@ public final class WeatherPanel extends JPanel {
         int humidity = selectedDay == 0 ? data.humidity : (int) Math.round(data.hourlyHumidity[statusIndex]);
         long wind = Math.round(selectedDay == 0 ? data.wind : data.hourlyWind[statusIndex]);
         condition.setText(description(statusCode) + " · "
-                + localized("Humidity ", "Luftfeuchtigkeit ") + humidity
-                + "% · " + localized("Wind ", "Wind ") + wind + " km/h");
+                + "Humidity " + humidity
+                + "% · Wind " + wind + " km/h");
         days.removeAll();
         for (int i = 0; i < Math.min(7, data.dates.length); i++) {
             final int day = i;
@@ -230,7 +227,7 @@ public final class WeatherPanel extends JPanel {
             JPanel button = new JPanel(new BorderLayout(0, 0));
             button.setBackground(AssistantTheme.PANEL_ALT);
             JLabel dayLabel = new JLabel(date.format(
-                    DateTimeFormatter.ofPattern("EE", weatherLocale())), JLabel.CENTER);
+                    DateTimeFormatter.ofPattern("EE", java.util.Locale.ENGLISH)), JLabel.CENTER);
             JLabel iconLabel = new JLabel("", JLabel.CENTER);
             int code = dayCode(i);
             iconLabel.setIcon(new WeatherIcon(code, false, 27, 21));
@@ -280,24 +277,12 @@ public final class WeatherPanel extends JPanel {
     }
 
     private static String description(int code) {
-        if (code == 0) return localized("Clear", "Klar");
-        if (code <= 2) return localized("Partly cloudy", "Teilweise bewölkt");
-        if (code <= 48) return localized("Cloudy", "Bewölkt");
-        if (code <= 67 || code >= 80 && code <= 82) return localized("Rain", "Regen");
-        if (code <= 77 || code >= 85 && code <= 86) return localized("Snow", "Schnee");
-        return localized("Thunderstorm", "Gewitter");
-    }
-
-    private static String localized(String english, String german) {
-        return Locale.GERMAN.getLanguage().equals(weatherLocale().getLanguage()) ? german : english;
-    }
-
-    static Locale localeFor(Locale detectedLocale) {
-        return AssistantTheme.supportedLocale(detectedLocale);
-    }
-
-    private static Locale weatherLocale() {
-        return localeFor(AssistantTheme.USER_LOCALE);
+        if (code == 0) return "Clear";
+        if (code <= 2) return "Partly cloudy";
+        if (code <= 48) return "Cloudy";
+        if (code <= 67 || code >= 80 && code <= 82) return "Rain";
+        if (code <= 77 || code >= 85 && code <= 86) return "Snow";
+        return "Thunderstorm";
     }
 
     private static final class PencilIcon implements Icon {
