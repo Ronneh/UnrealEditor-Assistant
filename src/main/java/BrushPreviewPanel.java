@@ -22,6 +22,7 @@ public final class BrushPreviewPanel extends JPanel {
             "[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?");
     private double angle;
     private double tilt = Math.toRadians(58);
+    private double zoom = 1.0;
     private int dragY;
     private final Timer animation = new Timer(16, event -> {
         angle += 0.009;
@@ -36,7 +37,7 @@ public final class BrushPreviewPanel extends JPanel {
         setOpaque(true);
         setPreferredSize(new Dimension(285, 170));
         setMinimumSize(new Dimension(220, 120));
-        setToolTipText("Hold the left mouse button and drag up or down to tilt the brush");
+        setToolTipText("Drag vertically to tilt; use the mouse wheel to zoom");
         MouseAdapter tiltControl = new MouseAdapter() {
             @Override public void mousePressed(MouseEvent event) {
                 if (event.getButton() != MouseEvent.BUTTON1) return;
@@ -58,6 +59,12 @@ public final class BrushPreviewPanel extends JPanel {
         };
         addMouseListener(tiltControl);
         addMouseMotionListener(tiltControl);
+        addMouseWheelListener(event -> {
+            zoom = Math.max(0.35, Math.min(4.0,
+                    zoom * Math.pow(1.12, -event.getPreciseWheelRotation())));
+            event.consume();
+            repaint();
+        });
         updateBorderTitle();
     }
 
@@ -109,14 +116,14 @@ public final class BrushPreviewPanel extends JPanel {
         double availableWidth = Math.max(1, getWidth() - insets.left - insets.right - 24);
         double availableHeight = Math.max(1, getHeight() - insets.top - insets.bottom - 20);
         double scale = Math.min(availableWidth, availableHeight)
-                / Math.max(1, bounds.radius * 2.0) * 0.78;
+                / Math.max(1, bounds.radius * 2.0) * 0.78 * zoom;
         double centerX = insets.left + (getWidth() - insets.left - insets.right) / 2.0;
         double centerY = insets.top + (getHeight() - insets.top - insets.bottom) / 2.0 + 3;
         double cos = Math.cos(angle), sin = Math.sin(angle);
         double tiltCos = Math.cos(tilt), tiltSin = Math.sin(tilt);
 
         g.setColor(wireColor);
-        g.setStroke(new BasicStroke(1.45f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.setStroke(new BasicStroke(1.05f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
         for (List<Point3> polygon : polygons) {
             if (polygon.size() < 2) continue;
             for (int index = 0; index < polygon.size(); index++) {

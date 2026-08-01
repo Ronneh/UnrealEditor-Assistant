@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import javax.swing.JComponent;
 import javax.swing.JTree;
 import javax.swing.TransferHandler;
@@ -20,16 +21,23 @@ public final class FileTreeReorderHandler extends TransferHandler {
     private final Consumer<Path> reload;
     private final Consumer<Exception> error;
     private final TransferHandler external;
+    private final Predicate<Path> movable;
 
     public FileTreeReorderHandler(JTree tree, Path root, Function<Object, Path> pathOf,
             Consumer<Path> reload, Consumer<Exception> error, TransferHandler external) {
+        this(tree, root, pathOf, reload, error, external, path -> true);
+    }
+
+    public FileTreeReorderHandler(JTree tree, Path root, Function<Object, Path> pathOf,
+            Consumer<Path> reload, Consumer<Exception> error, TransferHandler external,
+            Predicate<Path> movable) {
         this.tree = tree; this.root = root; this.pathOf = pathOf; this.reload = reload;
-        this.error = error; this.external = external;
+        this.error = error; this.external = external; this.movable = movable;
     }
 
     @Override protected Transferable createTransferable(JComponent component) {
         Path path = selectedPath();
-        if (path == null || path.equals(root)) return null;
+        if (path == null || path.equals(root) || !movable.test(path)) return null;
         return new Transferable() {
             @Override public DataFlavor[] getTransferDataFlavors() { return new DataFlavor[] { PATH_FLAVOR }; }
             @Override public boolean isDataFlavorSupported(DataFlavor flavor) { return PATH_FLAVOR.equals(flavor); }
@@ -56,6 +64,7 @@ public final class FileTreeReorderHandler extends TransferHandler {
         }
         try {
             Path source = (Path) support.getTransferable().getTransferData(PATH_FLAVOR);
+            if (!movable.test(source)) return false;
             JTree.DropLocation location = (JTree.DropLocation) support.getDropLocation();
             DefaultMutableTreeNode parentNode = (DefaultMutableTreeNode) location.getPath().getLastPathComponent();
             Path folder = pathOf.apply(parentNode.getUserObject());

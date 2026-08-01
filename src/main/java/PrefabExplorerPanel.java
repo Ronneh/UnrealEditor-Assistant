@@ -96,8 +96,8 @@ public final class PrefabExplorerPanel extends JPanel {
         header.add(heading, BorderLayout.WEST);
         JPanel actions = horizontalActions(FlowLayout.LEFT);
         actions.setBorder(BorderFactory.createEmptyBorder(4, 0, 0, 0));
-        actions.add(button("+ New Folder", event -> createFolder()));
-        actions.add(button("+ New File", event -> createNote()));
+        actions.add(button("+ Folder", event -> createFolder()));
+        actions.add(button("+ File", event -> createNote()));
         actions.add(button("Rename", event -> renameSelection()));
         actions.add(button("Open", event -> open()));
         actions.add(button("Save as...", event -> exportPrefab()));
@@ -283,10 +283,10 @@ public final class PrefabExplorerPanel extends JPanel {
         };
         setTransferHandler(drops);
         code.setTransferHandler(drops);
-        tree.setDropMode(DropMode.INSERT);
+        tree.setDropMode(DropMode.ON_OR_INSERT);
         if (!java.awt.GraphicsEnvironment.isHeadless()) tree.setDragEnabled(true);
         tree.setTransferHandler(new FileTreeReorderHandler(tree, storageRoot,
-                value -> ((Entry) value).path, this::reloadTree,
+                value -> ((Entry) value).path, this::reloadAfterMove,
                 exception -> showError("Could not move the item.", exception), drops));
     }
 
@@ -530,6 +530,13 @@ public final class PrefabExplorerPanel extends JPanel {
         boolean selected = select != null && selectPath(rootNode, select);
         reloadingTree = false;
         if (selected || select == null) selectEntry();
+    }
+
+    private void reloadAfterMove(Path target) {
+        autoSaveTimer.stop();
+        if (selectedNote != null && !Files.exists(selectedNote) && Files.isRegularFile(target))
+            selectedNote = target;
+        reloadTree(target);
     }
 
     private boolean loadChildren(DefaultMutableTreeNode parent, Path folder, String query, boolean parentMatches) {

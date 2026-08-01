@@ -136,6 +136,13 @@ public final class AssistantTheme {
         UIManager.put("List.foreground", TEXT);
         UIManager.put("List.selectionBackground", ACCENT_DARK);
         UIManager.put("List.selectionForeground", TEXT);
+        UIManager.put("Tree.background", PANEL_ALT);
+        UIManager.put("Tree.textForeground", TEXT);
+        UIManager.put("Tree.selectionBackground", ACCENT_DARK);
+        UIManager.put("Tree.selectionForeground", TEXT);
+        UIManager.put("Tree.dropCellBackground", ACCENT_DARK);
+        UIManager.put("Tree.dropCellForeground", TEXT);
+        UIManager.put("Tree.dropLineColor", ACCENT);
         UIManager.put("Table.background", CODE_BACKGROUND);
         UIManager.put("Table.foreground", TEXT);
         UIManager.put("Table.selectionBackground", ACCENT_DARK);
@@ -192,11 +199,11 @@ public final class AssistantTheme {
         splitPane.setUI(new BasicSplitPaneUI());
         splitPane.setContinuousLayout(true);
         splitPane.setDividerSize(7);
-        splitPane.setBackground(BORDER);
+        splitPane.setBackground(BACKGROUND);
         splitPane.setBorder(BorderFactory.createEmptyBorder());
         if (splitPane.getUI() instanceof BasicSplitPaneUI ui) {
-            ui.getDivider().setBackground(PANEL_ALT);
-            ui.getDivider().setBorder(BorderFactory.createLineBorder(BORDER));
+            ui.getDivider().setBackground(BACKGROUND);
+            ui.getDivider().setBorder(BorderFactory.createEmptyBorder());
         }
     }
 }

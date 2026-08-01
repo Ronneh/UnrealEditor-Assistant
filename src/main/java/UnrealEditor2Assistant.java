@@ -85,7 +85,7 @@ public final class UnrealEditor2Assistant {
         registerApp("resizer", "\u2922", "Resize", "Image", new ImageResizerPanel());
         registerApp("screenshots", "\u25a3", "Map", "Screenshot", new ScreenshotMakerPanel());
         registerApp("seamless", "\u223f", "Seamless", "Texture", new SeamlessTexturePanel());
-        registerApp("scripting", "\u2328", "UScript", "Assistant", new ScriptingPanel());
+        registerApp("scripting", "\u2328", "UScript", "Guide", new ScriptingPanel());
         registerApp("editor-help", "?", "Editor", "Guide", new EditorHelpPanel());
         navigation.add(Box.createHorizontalGlue());
 
@@ -156,7 +156,7 @@ public final class UnrealEditor2Assistant {
         welcome.setOpaque(false);
         JLabel heading = new JLabel("Unreal Editor 2 Assistant");
         heading.setFont(heading.getFont().deriveFont(Font.BOLD, 28f));
-        JLabel subtitle = new JLabel("A focused workspace for mapping and texture tools.");
+        JLabel subtitle = new JLabel("A focused workspace for mapping tools.");
         subtitle.setForeground(AssistantTheme.MUTED);
         subtitle.setBorder(BorderFactory.createEmptyBorder(5, 1, 0, 0));
         welcome.add(heading, BorderLayout.NORTH);
@@ -240,7 +240,7 @@ public final class UnrealEditor2Assistant {
         features.add(featureInfo("Brush Optimizer",
                 "Find and fix off-grid brush vertices safely."));
         features.add(featureInfo("Prefab Explorer",
-                "Organize T3D/TXT prefab notes and preview brushes instantly."));
+                "Organize and preview prefabs instantly."));
         features.add(featureInfo("Double",
                 "Prepare duplicated map content for the opposite team."));
         features.add(featureInfo("Screenshot Maker",
@@ -249,7 +249,7 @@ public final class UnrealEditor2Assistant {
                 "Resize images to Unreal-friendly texture dimensions."));
         features.add(featureInfo("Seamless Texture",
                 "Turn an image crop into a seamless square texture."));
-        features.add(featureInfo("Scripting",
+        features.add(featureInfo("UScript Guide",
                 "Write, check and compile UnrealScript with templates."));
         features.add(featureInfo("Editor Guide",
                 "Browse and search the complete local Unreal Editor reference."));

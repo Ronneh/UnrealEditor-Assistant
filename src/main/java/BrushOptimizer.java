@@ -127,7 +127,13 @@ public final class BrushOptimizer {
         controls.add(fontSizeBox);
         statusLabel.setForeground(new Color(0, 128, 0));
         controls.add(statusLabel);
-        root.add(controls, BorderLayout.NORTH);
+        JPanel header = new JPanel(new BorderLayout(0, 5));
+        header.setBackground(AssistantTheme.BACKGROUND);
+        JLabel heading = new JLabel("Brush Optimizer");
+        AssistantTheme.stylePageTitle(heading);
+        header.add(heading, BorderLayout.NORTH);
+        header.add(controls, BorderLayout.SOUTH);
+        root.add(header, BorderLayout.NORTH);
 
         inputArea.setToolTipText("Paste your map code here.");
         outputArea.setEditable(false);
@@ -152,9 +158,10 @@ public final class BrushOptimizer {
         lowerWorkspace.add(preview, BorderLayout.WEST);
 
         JPanel lowerSection = new JPanel(new BorderLayout(0, 5));
-        lowerSection.setOpaque(false);
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        actions.setOpaque(false);
+        lowerSection.setBackground(AssistantTheme.BACKGROUND);
+        JPanel actions = new JPanel(new EdgeAlignedFlowLayout(FlowLayout.LEFT, 6, 0));
+        actions.setBackground(AssistantTheme.BACKGROUND);
+        actions.setBorder(BorderFactory.createEmptyBorder(0, 1, 0, 0));
         actions.add(outlinedButton("Analyze", new Color(224, 132, 40), this::analyzeOnly));
         actions.add(outlinedButton("Optimize", new Color(45, 170, 85), this::optimizeAllBrushes));
         actions.add(button("Paste", this::pasteInput));

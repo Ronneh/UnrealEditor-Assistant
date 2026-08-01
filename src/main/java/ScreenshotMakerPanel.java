@@ -109,6 +109,7 @@ public final class ScreenshotMakerPanel extends JPanel {
     };
     private final int[] exportSizes = { 2048, 1024, 512, 256 };
     private int activeShot;
+    private int nextPasteShot;
 
     private static String[] usableFontFamilies() {
         String sample="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -560,14 +561,21 @@ public final class ScreenshotMakerPanel extends JPanel {
         getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(paste, "pasteScreenshot");
         getActionMap().put("pasteScreenshot", new AbstractAction() {
             @Override public void actionPerformed(java.awt.event.ActionEvent event) {
-                pasteShot(activeShot);
+                pasteShot(nextPasteShot, true);
             }
         });
     }
 
     private void pasteShot(int index) {
+        pasteShot(index, false);
+    }
+
+    private void pasteShot(int index, boolean advancePosition) {
         ClipboardImageSupport.paste(
-                image -> setShotImage(index, image, "clipboard"),
+                image -> {
+                    setShotImage(index, image, "clipboard");
+                    if (advancePosition) nextPasteShot = Math.min(shots.length - 1, index + 1);
+                },
                 exception -> {
                     cropStatus.setForeground(new Color(225, 105, 105));
                     cropStatus.setText("The clipboard content is not a supported image.");

@@ -14,6 +14,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.prefs.Preferences;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -22,6 +24,7 @@ import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
+import javax.swing.DropMode;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -30,9 +33,17 @@ import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextPane;
+import javax.swing.JTree;
 import javax.swing.KeyStroke;
 import javax.swing.SwingWorker;
+import javax.swing.UIManager;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.DefaultTreeCellRenderer;
+import javax.swing.tree.DefaultTreeModel;
+import javax.swing.tree.TreePath;
+import javax.swing.event.HyperlinkEvent;
+import javax.swing.plaf.basic.BasicSplitPaneUI;
 
 /** UnrealScript editor, offline advisor, and UCC compiler front end. */
 public final class ScriptingPanel extends JPanel {
@@ -43,21 +54,29 @@ public final class ScriptingPanel extends JPanel {
     private final JTextPane advice = new JTextPane();
     private final JTextPane learning = new JTextPane();
     private final JTextPane reference = new JTextPane();
+    private final JTextPane editorGuideContext = new JTextPane();
     private final JTextArea compilerOutput = new JTextArea();
     private final JTabbedPane assistantTabs = new JTabbedPane();
-    private final JLabel fileLabel = new JLabel("Untitled.uc");
+    private final JScrollPane sourceScroll = new JScrollPane(editor);
     private final JLabel status = new JLabel("Ready.");
     private final JButton compileButton = new JButton("Compile with UCC");
+    private final Path scriptLibrary = resolveScriptLibrary();
+    private final Path tutorialsFolder = scriptLibrary.resolve("Tutorials");
+    private final DefaultMutableTreeNode scriptRoot = new DefaultMutableTreeNode();
+    private final DefaultTreeModel scriptTreeModel = new DefaultTreeModel(scriptRoot);
+    private final JTree scriptTree = new JTree(scriptTreeModel);
     private Path currentFile;
     private Path uccExecutable;
     private boolean dirty;
+    private EditorHelpContentPack editorGuidePack;
+    private String relatedEditorGuideHtml = "";
 
     public ScriptingPanel() {
         super(new BorderLayout(8, 8));
         setBackground(AssistantTheme.BACKGROUND);
         setBorder(BorderFactory.createEmptyBorder(12, 14, 14, 14));
+        initializeScriptLibrary();
         configureComponents();
-        add(createToolbar(), BorderLayout.NORTH);
         add(createWorkspace(), BorderLayout.CENTER);
         add(status, BorderLayout.SOUTH);
         installShortcuts();
@@ -65,6 +84,7 @@ public final class ScriptingPanel extends JPanel {
         setTemplate("Basic Actor");
         dirty = false;
         analyze();
+        loadEditorGuideKnowledge();
     }
 
     private void configureComponents() {
@@ -84,6 +104,13 @@ public final class ScriptingPanel extends JPanel {
         advice.setBackground(AssistantTheme.CODE_BACKGROUND);
         configureHtmlPane(learning);
         configureHtmlPane(reference);
+        configureHtmlPane(editorGuideContext);
+        editorGuideContext.addHyperlinkListener(event -> {
+            if (event.getEventType() != HyperlinkEvent.EventType.ACTIVATED) return;
+            if (event.getDescription().startsWith("help:"))
+                showEditorGuideDocument(event.getDescription().substring("help:".length()));
+            else if (event.getDescription().equals("context:back")) showRelatedEditorGuideResults();
+        });
         compilerOutput.setEditable(false);
         compilerOutput.setFont(new Font("Verdana", Font.PLAIN, 12));
         compilerOutput.setBackground(AssistantTheme.CODE_BACKGROUND);
@@ -92,7 +119,9 @@ public final class ScriptingPanel extends JPanel {
 
     private JPanel createToolbar() {
         JPanel bar = new JPanel(new BorderLayout());
-        bar.setOpaque(false);
+        bar.setBackground(AssistantTheme.BACKGROUND);
+        bar.setBorder(BorderFactory.createEmptyBorder(5, 0, 3, 0));
+        bar.setPreferredSize(new Dimension(0, 36));
         JPanel files = row();
         files.add(button("New", event -> newFile()));
         files.add(button("Open...", event -> open()));
@@ -110,14 +139,24 @@ public final class ScriptingPanel extends JPanel {
         files.add(new JLabel("Font:"));
         files.add(fonts);
 
-        JPanel tools = row();
-        tools.add(button("Analyze", event -> analyze()));
-        tools.add(button("Set UCC...", event -> chooseUcc()));
-        compileButton.addActionListener(event -> compile());
-        tools.add(compileButton);
         bar.add(files, BorderLayout.WEST);
-        bar.add(tools, BorderLayout.EAST);
         return bar;
+    }
+
+    private JPanel createUccActions() {
+        JPanel actions = new JPanel(new BorderLayout());
+        actions.setBackground(AssistantTheme.BACKGROUND);
+        JPanel analysis = new JPanel(new EdgeAlignedFlowLayout(FlowLayout.LEFT, 6, 0));
+        analysis.setOpaque(false);
+        analysis.add(button("Analyze", event -> analyzeAndShow()));
+        actions.add(analysis, BorderLayout.WEST);
+        JPanel compiler = new JPanel(new EdgeAlignedFlowLayout(FlowLayout.RIGHT, 6, 0));
+        compiler.setOpaque(false);
+        compiler.add(button("Set UCC...", event -> chooseUcc()));
+        compileButton.addActionListener(event -> compile());
+        compiler.add(compileButton);
+        actions.add(compiler, BorderLayout.EAST);
+        return actions;
     }
 
     private JPanel row() {
@@ -129,14 +168,13 @@ public final class ScriptingPanel extends JPanel {
     private JSplitPane createWorkspace() {
         JPanel source = new JPanel(new BorderLayout(0, 4));
         source.setOpaque(false);
-        fileLabel.setForeground(AssistantTheme.MUTED);
-        source.add(fileLabel, BorderLayout.NORTH);
-        JScrollPane sourceScroll = new JScrollPane(editor);
-        sourceScroll.setBorder(AssistantTheme.titled("UnrealScript source"));
+        source.add(createToolbar(), BorderLayout.NORTH);
+        updateFileLabel();
         source.add(sourceScroll, BorderLayout.CENTER);
-        assistantTabs.addTab("Recommendations", new JScrollPane(advice));
         assistantTabs.addTab("Learn", createLearningPanel());
+        assistantTabs.addTab("Analysis", new JScrollPane(advice));
         assistantTabs.addTab("Reference", new JScrollPane(reference));
+        assistantTabs.addTab("Editor Guide", new JScrollPane(editorGuideContext));
         assistantTabs.addTab("Compiler output", new JScrollPane(compilerOutput));
         assistantTabs.setBackground(AssistantTheme.PANEL);
         assistantTabs.setForeground(AssistantTheme.TEXT);
@@ -147,11 +185,424 @@ public final class ScriptingPanel extends JPanel {
                         ? AssistantTheme.CODE_BACKGROUND : AssistantTheme.PANEL);
             }
         });
-        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, source, assistantTabs);
-        split.setResizeWeight(0.65);
-        AssistantTheme.styleSplitPane(split);
-        return split;
+        JSplitPane upperWorkspace = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
+                createScriptBrowser(), source);
+        upperWorkspace.setResizeWeight(0.25);
+        upperWorkspace.setDividerLocation(330);
+        AssistantTheme.styleSplitPane(upperWorkspace);
+        JPanel upperSection = new JPanel(new BorderLayout(0, 4));
+        upperSection.setBackground(AssistantTheme.BACKGROUND);
+        upperSection.add(upperWorkspace, BorderLayout.CENTER);
+        JSplitPane actionSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
+                createScriptActions(), createUccActions());
+        actionSplit.setResizeWeight(0.25);
+        actionSplit.setDividerLocation(330);
+        AssistantTheme.styleSplitPane(actionSplit);
+        upperWorkspace.addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY,
+                event -> actionSplit.setDividerLocation(upperWorkspace.getDividerLocation()));
+        actionSplit.addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY,
+                event -> upperWorkspace.setDividerLocation(actionSplit.getDividerLocation()));
+        upperSection.add(actionSplit, BorderLayout.SOUTH);
+        JSplitPane workspace = new JSplitPane(JSplitPane.VERTICAL_SPLIT,
+                upperSection, assistantTabs);
+        workspace.setResizeWeight(0.52);
+        workspace.setDividerLocation(353);
+        AssistantTheme.styleSplitPane(workspace);
+        workspace.setDividerSize(10);
+        if (workspace.getUI() instanceof BasicSplitPaneUI ui) {
+            ui.getDivider().setBackground(java.awt.Color.BLACK);
+            ui.getDivider().setBorder(BorderFactory.createMatteBorder(
+                    1, 0, 1, 0, AssistantTheme.BORDER));
+        }
+        return workspace;
     }
+
+    private JPanel createScriptBrowser() {
+        scriptRoot.setUserObject(new ScriptEntry("Scripts", scriptLibrary, true, false));
+        scriptTree.setRootVisible(true);
+        scriptTree.setShowsRootHandles(true);
+        scriptTree.setBackground(AssistantTheme.PANEL_ALT);
+        scriptTree.setForeground(AssistantTheme.TEXT);
+        scriptTree.setCellRenderer(new DefaultTreeCellRenderer() {
+            {
+                setBackgroundNonSelectionColor(AssistantTheme.PANEL_ALT);
+                setBackgroundSelectionColor(AssistantTheme.ACCENT_DARK);
+                setTextNonSelectionColor(AssistantTheme.TEXT);
+                setTextSelectionColor(AssistantTheme.TEXT);
+                setBorderSelectionColor(AssistantTheme.ACCENT);
+            }
+            @Override public java.awt.Component getTreeCellRendererComponent(
+                    JTree tree, Object value, boolean selected, boolean expanded,
+                    boolean leaf, int row, boolean hasFocus) {
+                super.getTreeCellRendererComponent(tree, value, selected, expanded, leaf, row, hasFocus);
+                if (value instanceof DefaultMutableTreeNode node
+                        && node.getUserObject() instanceof ScriptEntry entry && entry.folder) {
+                    setIcon(UIManager.getIcon(expanded ? "Tree.openIcon" : "Tree.closedIcon"));
+                }
+                return this;
+            }
+        });
+        scriptTree.addTreeSelectionListener(event -> openTreeSelection());
+        scriptTree.setDropMode(DropMode.ON_OR_INSERT);
+        if (!java.awt.GraphicsEnvironment.isHeadless()) scriptTree.setDragEnabled(true);
+        scriptTree.setTransferHandler(new FileTreeReorderHandler(scriptTree, scriptLibrary,
+                value -> ((ScriptEntry) value).path, this::reloadScriptTreeAfterMove,
+                exception -> showError("The item could not be moved.", exception), null,
+                path -> !isTutorialPath(path)));
+        reloadScriptTree(currentFile);
+        JPanel browser = new JPanel(new BorderLayout(0, 4));
+        browser.setOpaque(false);
+        JLabel heading = new JLabel("UScript Guide");
+        AssistantTheme.stylePageTitle(heading);
+        browser.add(heading, BorderLayout.NORTH);
+        JScrollPane scroll = new JScrollPane(scriptTree);
+        scroll.setBorder(AssistantTheme.titled("Scripts"));
+        browser.add(scroll, BorderLayout.CENTER);
+        browser.setPreferredSize(new Dimension(330, 0));
+        return browser;
+    }
+
+    private JPanel createScriptActions() {
+        JPanel actions = new JPanel(new EdgeAlignedFlowLayout(FlowLayout.LEFT, 5, 0));
+        actions.setBackground(AssistantTheme.BACKGROUND);
+        actions.setPreferredSize(new Dimension(330, 36));
+        actions.add(button("+ Folder", event -> createScriptFolder()));
+        actions.add(button("+ File", event -> createScriptFile()));
+        return actions;
+    }
+
+    private void initializeScriptLibrary() {
+        try {
+            Files.createDirectories(scriptLibrary);
+            Files.createDirectories(tutorialsFolder);
+            try (var existing = Files.list(tutorialsFolder)) {
+                for (Path path : existing.filter(Files::isRegularFile)
+                        .filter(path -> path.getFileName().toString().toLowerCase(Locale.ROOT)
+                                .matches("\\d{2}_.*\\.uc")).toList()) {
+                    Files.delete(path);
+                }
+            }
+            for (int index = 0; index < UnrealScriptLearning.LESSONS.length; index++) {
+                String lesson = UnrealScriptLearning.LESSONS[index];
+                Path file = tutorialPath(lesson);
+                String source = UnrealScriptLearning.exampleForLesson(lesson);
+                Files.writeString(file, source, StandardCharsets.ISO_8859_1);
+                FileTreeOrder.place(tutorialsFolder, file, index);
+            }
+        } catch (IOException exception) {
+            showError("The script library could not be initialized.", exception);
+        }
+    }
+
+    private void reloadScriptTree(Path selection) {
+        scriptRoot.removeAllChildren();
+        loadScriptChildren(scriptRoot, scriptLibrary);
+        scriptTreeModel.reload();
+        scriptTree.expandRow(0);
+        if (selection != null) selectScriptPath(scriptRoot, selection.toAbsolutePath().normalize());
+    }
+
+    private void reloadScriptTreeAfterMove(Path target) {
+        if (currentFile != null && !Files.exists(currentFile) && Files.isRegularFile(target))
+            currentFile = target;
+        reloadScriptTree(target);
+        updateFileLabel();
+    }
+
+    private void loadScriptChildren(DefaultMutableTreeNode parent, Path folder) {
+        try (var paths = Files.list(folder)) {
+            List<Path> children = FileTreeOrder.sort(folder, paths
+                    .filter(path -> Files.isDirectory(path)
+                            || path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".uc"))
+                    .toList());
+            for (Path path : children) {
+                boolean folderEntry = Files.isDirectory(path);
+                boolean tutorial = isTutorialPath(path);
+                String displayName = tutorial && !folderEntry ? tutorialDisplayName(path)
+                        : path.getFileName().toString();
+                DefaultMutableTreeNode node = new DefaultMutableTreeNode(new ScriptEntry(
+                        displayName, path, folderEntry, tutorial));
+                parent.add(node);
+                if (folderEntry) loadScriptChildren(node, path);
+            }
+        } catch (IOException exception) {
+            showError("The script folders could not be read.", exception);
+        }
+    }
+
+    private void openTreeSelection() {
+        ScriptEntry entry = selectedScriptEntry();
+        if (entry == null || entry.folder || entry.path.equals(currentFile)) return;
+        if (!confirmDiscard()) return;
+        try {
+            currentFile = entry.path;
+            editor.setText(Files.readString(currentFile, StandardCharsets.ISO_8859_1));
+            editor.setCaretPosition(0);
+            dirty = false;
+            updateFileLabel();
+            analyze();
+            status.setText("Opened " + currentFile.getFileName() + ".");
+        } catch (IOException exception) {
+            showError("The script could not be opened.", exception);
+        }
+    }
+
+    private void createScriptFolder() {
+        Path parent = selectedScriptFolder();
+        String name = askScriptName("New folder", "Folder name:", "New Folder");
+        if (name == null) return;
+        try {
+            Path folder = uniqueScriptPath(parent, safeScriptName(name), "");
+            Files.createDirectories(folder);
+            reloadScriptTree(folder);
+        } catch (IOException exception) {
+            showError("The folder could not be created.", exception);
+        }
+    }
+
+    private void createScriptFile() {
+        Path parent = selectedScriptFolder();
+        String name = askScriptName("New UnrealScript file", "Class name:", "MyClass");
+        if (name == null) return;
+        String className = safeScriptName(name).replaceAll("[^A-Za-z0-9_]", "_");
+        try {
+            Path file = uniqueScriptPath(parent, className, ".uc");
+            Files.writeString(file, "class " + baseName(file) + " expands Actor;\n\ndefaultproperties\n{\n}\n",
+                    StandardCharsets.ISO_8859_1);
+            reloadScriptTree(file);
+        } catch (IOException exception) {
+            showError("The script file could not be created.", exception);
+        }
+    }
+
+    private void renameScriptEntry() {
+        ScriptEntry entry = selectedScriptEntry();
+        if (entry == null || entry.path.equals(scriptLibrary)) return;
+        if (entry.protectedEntry) {
+            DarkDialogs.message(this, "Tutorials cannot be renamed.",
+                    "Protected tutorial", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        String initial = entry.folder ? entry.name : baseName(entry.path);
+        String name = askScriptName("Rename", "New name:", initial);
+        if (name == null) return;
+        String suffix = entry.folder ? "" : ".uc";
+        Path target = entry.path.resolveSibling(safeScriptName(name) + suffix);
+        if (Files.exists(target)) {
+            DarkDialogs.message(this, "An item with this name already exists.",
+                    "Rename", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        try {
+            Files.move(entry.path, target);
+            if (entry.path.equals(currentFile)) currentFile = target;
+            reloadScriptTree(target);
+            updateFileLabel();
+        } catch (IOException exception) {
+            showError("The item could not be renamed.", exception);
+        }
+    }
+
+    private void deleteScriptEntry() {
+        ScriptEntry entry = selectedScriptEntry();
+        if (entry == null || entry.path.equals(scriptLibrary)) return;
+        if (entry.protectedEntry) {
+            DarkDialogs.message(this, "Tutorials cannot be deleted.",
+                    "Protected tutorial", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        if (!DeleteConfirmationSupport.confirm(this, entry.name)) return;
+        try {
+            if (entry.folder) {
+                try (var paths = Files.walk(entry.path)) {
+                    for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) Files.delete(path);
+                }
+            } else Files.delete(entry.path);
+            if (entry.path.equals(currentFile)) newFile();
+            reloadScriptTree(null);
+        } catch (IOException exception) {
+            showError("The item could not be deleted.", exception);
+        }
+    }
+
+    private ScriptEntry selectedScriptEntry() {
+        Object selected = scriptTree.getLastSelectedPathComponent();
+        return selected instanceof DefaultMutableTreeNode node
+                && node.getUserObject() instanceof ScriptEntry entry ? entry : null;
+    }
+
+    private Path selectedScriptFolder() {
+        ScriptEntry selected = selectedScriptEntry();
+        if (selected == null) return scriptLibrary;
+        if (selected.protectedEntry) return scriptLibrary;
+        return selected.folder ? selected.path : selected.path.getParent();
+    }
+
+    private boolean selectScriptPath(DefaultMutableTreeNode node, Path target) {
+        if (node.getUserObject() instanceof ScriptEntry entry
+                && entry.path.toAbsolutePath().normalize().equals(target)) {
+            scriptTree.setSelectionPath(new TreePath(node.getPath()));
+            scriptTree.scrollPathToVisible(new TreePath(node.getPath()));
+            return true;
+        }
+        for (int index = 0; index < node.getChildCount(); index++)
+            if (selectScriptPath((DefaultMutableTreeNode) node.getChildAt(index), target)) return true;
+        return false;
+    }
+
+    private String askScriptName(String title, String message, String initial) {
+        Object value = DarkDialogs.input(this, message, title, JOptionPane.PLAIN_MESSAGE,
+                null, null, initial);
+        return value == null || value.toString().trim().isEmpty() ? null : value.toString().trim();
+    }
+
+    private static Path uniqueScriptPath(Path parent, String base, String suffix) {
+        Path result = parent.resolve(base + suffix);
+        int number = 2;
+        while (Files.exists(result)) result = parent.resolve(base + " " + number++ + suffix);
+        return result;
+    }
+
+    private static String safeScriptName(String name) {
+        String safe = name.replaceAll("[\\\\/:*?\"<>|]", "_").trim();
+        return safe.isEmpty() ? "Untitled" : safe;
+    }
+
+    private boolean isTutorialPath(Path path) {
+        return path.toAbsolutePath().normalize().startsWith(tutorialsFolder.toAbsolutePath().normalize());
+    }
+
+    private Path tutorialPath(String lesson) {
+        String name = safeScriptName(lesson).replaceAll("[^A-Za-z0-9._ -]", "_");
+        return tutorialsFolder.resolve(name + ".uc");
+    }
+
+    private String tutorialDisplayName(Path path) {
+        for (String lesson : UnrealScriptLearning.LESSONS)
+            if (tutorialPath(lesson).equals(path)) return lesson;
+        return baseName(path);
+    }
+
+    private static Path resolveScriptLibrary() {
+        String data = System.getenv("LOCALAPPDATA");
+        Path base = data == null || data.isBlank()
+                ? Path.of(System.getProperty("user.home"), ".unreal-editor-2-assistant")
+                : Path.of(data, "UnrealEditor2Assistant");
+        return base.resolve("Scripts");
+    }
+
+    private void loadEditorGuideKnowledge() {
+        editorGuideContext.setText("<html><body style='font-family:sans-serif;background:#11151b;"
+                + "color:#e8edf4;padding:10px'>Loading related Editor Guide content...</body></html>");
+        new SwingWorker<EditorHelpContentPack, Void>() {
+            @Override protected EditorHelpContentPack doInBackground() throws Exception {
+                Path root = new EditorHelpEnvironment().locateContentPack();
+                return new EditorHelpContentPackLoader().load(root);
+            }
+            @Override protected void done() {
+                try {
+                    editorGuidePack = get();
+                    updateEditorGuideContext(editor.getText());
+                } catch (Exception exception) {
+                    editorGuideContext.setText("<html><body style='font-family:sans-serif;background:#11151b;"
+                            + "color:#9ca7b8;padding:10px'>Editor Guide content is unavailable.</body></html>");
+                }
+            }
+        }.execute();
+    }
+
+    private void updateEditorGuideContext(String sourceCode) {
+        if (editorGuidePack == null) return;
+        LinkedHashSet<String> terms = new LinkedHashSet<>();
+        String lower = sourceCode.toLowerCase(Locale.ROOT);
+        String[] knownTerms = { "unrealscript", "actor", "trigger", "touch", "event", "tag",
+                "mover", "timer", "network", "replication", "mutator", "weapon", "zone",
+                "kicker", "teleporter", "collision", "package", "compile" };
+        for (String term : knownTerms) if (lower.contains(term)) terms.add(term);
+        Matcher declaration = CLASS.matcher(sourceCode);
+        if (declaration.find()) terms.add(declaration.group(2).toLowerCase(Locale.ROOT));
+        if (terms.isEmpty()) terms.add("unrealscript");
+
+        List<RankedHelp> related = editorGuidePack.documents().stream()
+                .map(document -> new RankedHelp(document, helpScore(document, terms)))
+                .filter(item -> item.score > 0)
+                .sorted(Comparator.comparingInt(RankedHelp::score).reversed()
+                        .thenComparing(item -> item.document.title()))
+                .limit(6)
+                .toList();
+        StringBuilder html = new StringBuilder("<html><body style='font-family:sans-serif;"
+                + "background:#11151b;color:#e8edf4;padding:10px'>"
+                + "<h2 style='margin-top:0'>Related Editor Guide articles</h2>"
+                + "<p style='color:#9ca7b8'>Matched from the current code: ")
+                .append(html(String.join(", ", terms))).append("</p>");
+        if (related.isEmpty()) html.append("<p>No related articles found.</p>");
+        for (RankedHelp item : related) {
+            EditorHelpContentPack.HelpDocument document = item.document;
+            html.append("<div style='margin:8px 0;padding:9px;background:#1e242e;"
+                            + "border-left:4px solid #66aaf2'><a href='help:")
+                    .append(html(document.id())).append("'><b>").append(html(document.title()))
+                    .append("</b></a><br><span style='color:#9ca7b8'>")
+                    .append(html(String.join(" / ", document.categoryPath())))
+                    .append("</span><br>").append(html(helpExcerpt(document.text(), terms)))
+                    .append("</div>");
+        }
+        html.append("</body></html>");
+        relatedEditorGuideHtml = html.toString();
+        showRelatedEditorGuideResults();
+    }
+
+    private static int helpScore(EditorHelpContentPack.HelpDocument document, Iterable<String> terms) {
+        String title = document.title().toLowerCase(Locale.ROOT);
+        String headings = String.join(" ", document.headings()).toLowerCase(Locale.ROOT);
+        String categories = String.join(" ", document.categoryPath()).toLowerCase(Locale.ROOT);
+        String text = document.text().toLowerCase(Locale.ROOT);
+        int score = 0;
+        for (String term : terms) {
+            if (title.contains(term)) score += 5;
+            if (headings.contains(term)) score += 3;
+            if (categories.contains(term)) score += 2;
+            if (text.contains(term)) score++;
+        }
+        return score;
+    }
+
+    private static String helpExcerpt(String text, Iterable<String> terms) {
+        if (text == null || text.isBlank()) return "";
+        String compact = text.replaceAll("\\s+", " ").trim();
+        String lower = compact.toLowerCase(Locale.ROOT);
+        int match = -1;
+        for (String term : terms) {
+            int found = lower.indexOf(term);
+            if (found >= 0 && (match < 0 || found < match)) match = found;
+        }
+        int start = match < 0 ? 0 : Math.max(0, match - 70);
+        int end = Math.min(compact.length(), start + 260);
+        return (start > 0 ? "... " : "") + compact.substring(start, end)
+                + (end < compact.length() ? " ..." : "");
+    }
+
+    private void showEditorGuideDocument(String id) {
+        if (editorGuidePack == null) return;
+        editorGuidePack.documents().stream().filter(document -> document.id().equals(id)).findFirst()
+                .ifPresent(document -> {
+                    String body = html(document.text()).replace("\n", "<br>");
+                    editorGuideContext.setText("<html><body style='font-family:sans-serif;background:#11151b;"
+                            + "color:#e8edf4;padding:10px'><p><a href='context:back'>&#8592; Back to related results</a></p><br>"
+                            + "<h1 style='font-size:14px;font-weight:bold;margin-top:0'>"
+                            + html(document.title()) + "</h1>"
+                            + "<p style='color:#9ca7b8'>" + html(String.join(" / ", document.categoryPath()))
+                            + "</p><p>" + body + "</p></body></html>");
+                    editorGuideContext.setCaretPosition(0);
+                });
+    }
+
+    private void showRelatedEditorGuideResults() {
+        if (relatedEditorGuideHtml.isBlank()) return;
+        editorGuideContext.setText(relatedEditorGuideHtml);
+        editorGuideContext.setCaretPosition(0);
+    }
+
+    private record RankedHelp(EditorHelpContentPack.HelpDocument document, int score) { }
 
     private void configureHtmlPane(JTextPane pane) {
         pane.setContentType("text/html");
@@ -168,8 +619,8 @@ public final class ScriptingPanel extends JPanel {
         selector.setOpaque(false);
         selector.add(new JLabel("Lesson:"));
         selector.add(lessons);
-        selector.add(button("Load lesson example", event -> insertTemplate(
-                UnrealScriptLearning.templateForLesson((String) lessons.getSelectedItem()))));
+        selector.add(button("Load lesson example", event -> loadLessonExample(
+                (String) lessons.getSelectedItem())));
         panel.add(selector, BorderLayout.NORTH);
         panel.add(new JScrollPane(learning), BorderLayout.CENTER);
         showLesson(UnrealScriptLearning.LESSONS[0]);
@@ -181,6 +632,23 @@ public final class ScriptingPanel extends JPanel {
         learning.setCaretPosition(0);
     }
 
+    private void loadLessonExample(String lesson) {
+        if (lesson == null || !confirmDiscard()) return;
+        Path tutorial = tutorialPath(lesson);
+        try {
+            currentFile = tutorial;
+            editor.setText(Files.readString(tutorial, StandardCharsets.ISO_8859_1));
+            editor.setCaretPosition(0);
+            dirty = false;
+            updateFileLabel();
+            selectScriptPath(scriptRoot, tutorial.toAbsolutePath().normalize());
+            analyze();
+            status.setText("Loaded tutorial " + lesson + ".");
+        } catch (IOException exception) {
+            showError("The tutorial could not be loaded.", exception);
+        }
+    }
+
     private JButton button(String text, java.util.function.Consumer<ActionEvent> action) {
         JButton button = new JButton(text);
         button.addActionListener(action::accept);
@@ -189,7 +657,7 @@ public final class ScriptingPanel extends JPanel {
 
     private void installShortcuts() {
         shortcut("control S", "save", this::save);
-        shortcut("F6", "analyze", () -> { analyze(); return true; });
+        shortcut("F6", "analyze", () -> { analyzeAndShow(); return true; });
         shortcut("F7", "compile", () -> { compile(); return true; });
     }
 
@@ -243,6 +711,7 @@ public final class ScriptingPanel extends JPanel {
     }
 
     private boolean save() {
+        if (currentFile != null && isTutorialPath(currentFile)) return saveAs();
         return currentFile == null ? saveAs() : writeFile(currentFile);
     }
 
@@ -290,7 +759,8 @@ public final class ScriptingPanel extends JPanel {
         } else {
             declaredClass = declaration.group(1);
             parentClass = declaration.group(2);
-            if (currentFile != null && !baseName(currentFile).equalsIgnoreCase(declaredClass))
+            if (currentFile != null && !isTutorialPath(currentFile)
+                    && !baseName(currentFile).equalsIgnoreCase(declaredClass))
                 results.add(error("The file name must match the class: <code>"
                         + html(declaredClass) + ".uc</code>."));
         }
@@ -331,6 +801,15 @@ public final class ScriptingPanel extends JPanel {
                 && !source.matches("(?is).*\\bEvent\\s*=\\s*\\w+.*"))
             results.add(tip("Set the placed actor's <code>Event</code> in UnrealEd. It must match "
                     + "the target Mover or actor <code>Tag</code>."));
+        if (source.matches("(?is).*class\\s+BTLaunchPad\\b.*")
+                && !source.matches("(?is).*Player\\.Velocity\\s*=\\s*LaunchVelocity.*"))
+            results.add(warning("Add <code>Player.Velocity = LaunchVelocity;</code> after calculating the vector."));
+        if (source.matches("(?is).*class\\s+BTMoverEventTrigger\\b.*")
+                && !source.matches("(?is).*TriggerEvent\\s*\\(\\s*Event.*"))
+            results.add(warning("Add <code>TriggerEvent(Event, Self, EventInstigator);</code> inside Trigger()."));
+        if (source.matches("(?is).*class\\s+BTNetworkHelper\\b.*")
+                && !source.matches("(?is).*RemoteRole\\s*=.*"))
+            results.add(warning("Add <code>RemoteRole=ROLE_SimulatedProxy</code> in defaultproperties."));
         checkDefaultProperties(source, results);
         if (results.stream().noneMatch(f -> f.level != Level.TIP))
             results.add(new Finding(Level.OK, "No structural problems found. UCC remains authoritative."));
@@ -340,10 +819,15 @@ public final class ScriptingPanel extends JPanel {
         reference.setText(UnrealScriptLearning.referenceFor(parentClass));
         reference.setCaretPosition(0);
         render(results);
-        assistantTabs.setSelectedIndex(0);
+        updateEditorGuideContext(source);
         long errors = results.stream().filter(f -> f.level == Level.ERROR).count();
         long warnings = results.stream().filter(f -> f.level == Level.WARNING).count();
         status.setText("Analysis complete: " + errors + " error(s), " + warnings + " warning(s).");
+    }
+
+    private void analyzeAndShow() {
+        analyze();
+        assistantTabs.setSelectedIndex(1);
     }
 
     private void checkDefaultProperties(String source, List<Finding> results) {
@@ -390,24 +874,17 @@ public final class ScriptingPanel extends JPanel {
     }
 
     private void render(List<Finding> results) {
-        StringBuilder out = new StringBuilder("""
-                <html><body style='font-family:sans-serif;background:#11151b;color:#e8edf4;padding:10px'>
-                <h2 style='margin-top:0'>UnrealScript Assistant</h2>
-                <p style='color:#9ca7b8'>Offline checks based on the core class, state, mutator,
-                weapon and replication guidance from the scripting reference.</p>
-                """);
+        boolean hasError = results.stream().anyMatch(finding -> finding.level == Level.ERROR);
+        boolean hasWarning = results.stream().anyMatch(finding -> finding.level == Level.WARNING);
+        String color = hasError ? "#ef7777" : hasWarning ? "#e7bd68" : "#66cf8e";
+        StringBuilder out = new StringBuilder("<html><body style='font-family:sans-serif;"
+                + "background:#11151b;color:#e8edf4;padding:10px'><div style='margin:8px 0;"
+                + "padding:10px;border-left:4px solid " + color + ";background:#1e242e'>"
+                + "<b style='color:" + color + "'>Tips</b><br><br>");
         for (Finding finding : results) {
-            String color = switch (finding.level) {
-                case ERROR -> "#ef7777"; case WARNING -> "#e7bd68";
-                case TIP -> "#79aef0"; case OK -> "#66cf8e";
-            };
-            out.append("<div style='margin:8px 0;padding:8px;border-left:4px solid ")
-                    .append(color).append(";background:#1e242e'><b style='color:")
-                    .append(color).append("'>").append(finding.level.label)
-                    .append("</b><br>").append(finding.message).append("</div>");
+            out.append("&#8226; ").append(finding.message).append("<br><br>");
         }
-        out.append("<p><code>Ctrl+S</code> Save &nbsp; <code>F6</code> Analyze &nbsp; "
-                + "<code>F7</code> Compile</p></body></html>");
+        out.append("</div></body></html>");
         advice.setText(out.toString());
         advice.setCaretPosition(0);
     }
@@ -451,7 +928,7 @@ public final class ScriptingPanel extends JPanel {
         Path compiler = uccExecutable;
         compileButton.setEnabled(false);
         compilerOutput.setText("Running: \"" + compiler + "\" make\n\n");
-        assistantTabs.setSelectedIndex(3);
+        assistantTabs.setSelectedIndex(4);
         status.setText("Compiling UnrealScript packages...");
         new SwingWorker<Integer, String>() {
             @Override protected Integer doInBackground() throws Exception {
@@ -557,12 +1034,15 @@ public final class ScriptingPanel extends JPanel {
     }
 
     private void updateFileLabel() {
-        fileLabel.setText((dirty ? "* " : "") + (currentFile == null ? "Untitled.uc" : currentFile));
+        String path = currentFile == null ? "Untitled.uc" : currentFile.toString();
+        sourceScroll.setBorder(AssistantTheme.titled(
+                "UnrealScript Code: " + (dirty ? "* " : "") + path));
+        sourceScroll.repaint();
     }
 
     private void showError(String message, Exception exception) {
         DarkDialogs.message(this, message + "\n" + exception.getMessage(),
-                "Scripting", JOptionPane.ERROR_MESSAGE);
+                "UScript Guide", JOptionPane.ERROR_MESSAGE);
     }
 
     private static String baseName(Path path) {
@@ -584,6 +1064,9 @@ public final class ScriptingPanel extends JPanel {
         Level(String label) { this.label = label; }
     }
     private record Finding(Level level, String message) { }
+    private record ScriptEntry(String name, Path path, boolean folder, boolean protectedEntry) {
+        @Override public String toString() { return name; }
+    }
 
     @FunctionalInterface
     private interface DocumentChange extends javax.swing.event.DocumentListener {

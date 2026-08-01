@@ -94,7 +94,7 @@ public final class BrushGeneratorPanel extends JPanel {
         addRow(properties, row++, "Sides:", cylinderSides);
         addRow(properties, row++, "Align to Side:", alignToSide);
 
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 7, 0));
+        JPanel actions = new JPanel(new EdgeAlignedFlowLayout(FlowLayout.LEFT, 7, 0));
         actions.setOpaque(false);
         JButton generate = new JButton("Generate");
         generate.addActionListener(event -> generate());
