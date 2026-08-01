@@ -66,7 +66,7 @@ public final class BrushGeneratorPanel extends JPanel {
         JPanel header = new JPanel(new BorderLayout());
         header.setOpaque(false);
         JLabel title = new JLabel("Cylinder Brush Generator");
-        title.setFont(title.getFont().deriveFont(Font.BOLD, 23f));
+        AssistantTheme.stylePageTitle(title);
         header.add(title, BorderLayout.WEST);
         JLabel description = new JLabel("Generate an on-grid cylinder brush.");
         description.setForeground(AssistantTheme.MUTED);
@@ -176,7 +176,7 @@ public final class BrushGeneratorPanel extends JPanel {
         } catch (IllegalArgumentException exception) {
             status.setForeground(new Color(225, 105, 105));
             status.setText(exception.getMessage());
-            JOptionPane.showMessageDialog(this, exception.getMessage(),
+            DarkDialogs.message(this, exception.getMessage(),
                     "Could not generate brush", JOptionPane.ERROR_MESSAGE);
         }
     }

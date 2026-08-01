@@ -25,6 +25,7 @@ import javax.swing.JFrame;
 import javax.swing.ImageIcon;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
@@ -43,6 +44,7 @@ public final class UnrealEditor2Assistant {
     private final JPanel cards = new JPanel(cardLayout);
     private final JPanel navigation = new JPanel();
     private final Map<String, JButton> navigationButtons = new LinkedHashMap<>();
+    private JScrollPane featureScroll;
 
     public static void main(String[] args) {
         System.setProperty("sun.awt.window.darkMode", "true");
@@ -78,6 +80,7 @@ public final class UnrealEditor2Assistant {
         registerApp(HOME, "\u2302", "Home", "\u00a0", createHomePanel());
         registerApp("generator", "+", "Brush", "Generator", new BrushGeneratorPanel());
         registerApp("optimizer", "\u25a6", "Brush", "Optimizer", new BrushOptimizer().createContent());
+        registerApp("prefabs", "\u25c7", "Prefab", "Explorer", new PrefabExplorerPanel());
         registerApp("double", "\u21c9", "Double", "Map", new MapDoublerPanel());
         registerApp("resizer", "\u2922", "Resize", "Image", new ImageResizerPanel());
         registerApp("screenshots", "\u25a3", "Map", "Screenshot", new ScreenshotMakerPanel());
@@ -135,6 +138,9 @@ public final class UnrealEditor2Assistant {
 
     private void showApp(String id) {
         cardLayout.show(cards, id);
+        if (HOME.equals(id) && featureScroll != null) {
+            SwingUtilities.invokeLater(() -> featureScroll.getViewport().setViewPosition(new java.awt.Point(0, 0)));
+        }
         navigationButtons.forEach((appId, button) ->
                 button.setBackground(appId.equals(id) ? AssistantTheme.ACCENT_DARK : AssistantTheme.HEADER));
     }
@@ -233,6 +239,8 @@ public final class UnrealEditor2Assistant {
                 "Create grid-aligned polygon brushes for common CSG tasks."));
         features.add(featureInfo("Brush Optimizer",
                 "Find and fix off-grid brush vertices safely."));
+        features.add(featureInfo("Prefab Explorer",
+                "Organize T3D/TXT prefab notes and preview brushes instantly."));
         features.add(featureInfo("Double",
                 "Prepare duplicated map content for the opposite team."));
         features.add(featureInfo("Screenshot Maker",
@@ -246,7 +254,17 @@ public final class UnrealEditor2Assistant {
         features.add(featureInfo("Editor Guide",
                 "Browse and search the complete local Unreal Editor reference."));
 
-        guide.add(features, BorderLayout.CENTER);
+        // Four equal rows: the viewport fits exactly three rows and two gaps (295 px).
+        // At the bottom the scroll offset is therefore exactly one row plus one gap.
+        features.setPreferredSize(new Dimension(680, 396));
+        featureScroll = new JScrollPane(features,
+                JScrollPane.VERTICAL_SCROLLBAR_NEVER, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        featureScroll.setBorder(BorderFactory.createEmptyBorder());
+        featureScroll.setOpaque(false);
+        featureScroll.getViewport().setOpaque(false);
+        featureScroll.setWheelScrollingEnabled(true);
+        featureScroll.getVerticalScrollBar().setUnitIncrement(96);
+        guide.add(featureScroll, BorderLayout.CENTER);
         return guide;
     }
 

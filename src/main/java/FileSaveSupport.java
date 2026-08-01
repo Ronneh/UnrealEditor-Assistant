@@ -8,7 +8,7 @@ public final class FileSaveSupport {
 
     public static boolean confirmOverwrite(Component parent, File file) {
         if (!file.exists()) return true;
-        return JOptionPane.showConfirmDialog(
+        return DarkDialogs.confirm(
                 parent,
                 "\"" + file.getName() + "\" already exists.\nReplace it?",
                 "Replace existing file",

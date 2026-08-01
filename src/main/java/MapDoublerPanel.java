@@ -373,7 +373,7 @@ public final class MapDoublerPanel extends JPanel {
 
     private void copyResult(ActionEvent ignored) {
         if (outputArea.getText().isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Press Double before copying the result.",
+            DarkDialogs.message(this, "Press Double before copying the result.",
                     "No result", JOptionPane.INFORMATION_MESSAGE);
             return;
         }

@@ -100,7 +100,7 @@ public final class BrushOptimizer {
         preserveCurveLines.setBackground(AssistantTheme.BACKGROUND);
         controls.add(preserveCurveLines);
         controls.add(new JLabel("Grid step:"));
-        gridStepBox.setSelectedItem(32);
+        gridStepBox.setSelectedItem(2);
         controls.add(gridStepBox);
         controls.add(new JLabel("Min. move:"));
         minMoveBox.setSelectedItem(32);
@@ -121,11 +121,6 @@ public final class BrushOptimizer {
         controls.add(maxMoveBox);
         preserveCurveLines.addActionListener(event -> updateCurveMode());
         updateCurveMode();
-        controls.add(button("Analyze", this::analyzeOnly));
-        controls.add(button("Optimize", this::optimizeAllBrushes));
-        controls.add(button("Copy result", this::copyOutput));
-        controls.add(button("Paste", this::pasteInput));
-        controls.add(button("Reset", this::reset));
         controls.add(new JLabel("Font size:"));
         fontSizeBox.setSelectedItem(12);
         fontSizeBox.addActionListener(event -> setCodeFontSize((Integer) fontSizeBox.getSelectedItem()));
@@ -154,9 +149,21 @@ public final class BrushOptimizer {
         JPanel lowerWorkspace = new JPanel(new BorderLayout(7, 0));
         lowerWorkspace.setOpaque(false);
         lowerWorkspace.add(logScroll, BorderLayout.CENTER);
-        lowerWorkspace.add(preview, BorderLayout.EAST);
+        lowerWorkspace.add(preview, BorderLayout.WEST);
 
-        JSplitPane workspaceSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, codeSplit, lowerWorkspace);
+        JPanel lowerSection = new JPanel(new BorderLayout(0, 5));
+        lowerSection.setOpaque(false);
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        actions.setOpaque(false);
+        actions.add(outlinedButton("Analyze", new Color(224, 132, 40), this::analyzeOnly));
+        actions.add(outlinedButton("Optimize", new Color(45, 170, 85), this::optimizeAllBrushes));
+        actions.add(button("Paste", this::pasteInput));
+        actions.add(button("Copy result", this::copyOutput));
+        actions.add(button("Reset", this::reset));
+        lowerSection.add(actions, BorderLayout.NORTH);
+        lowerSection.add(lowerWorkspace, BorderLayout.CENTER);
+
+        JSplitPane workspaceSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, codeSplit, lowerSection);
         workspaceSplit.setResizeWeight(0.78);
         AssistantTheme.styleSplitPane(workspaceSplit);
         root.add(workspaceSplit, BorderLayout.CENTER);
@@ -166,6 +173,15 @@ public final class BrushOptimizer {
     private JButton button(String label, java.util.function.Consumer<ActionEvent> action) {
         JButton button = new JButton(label);
         button.addActionListener(action::accept);
+        return button;
+    }
+
+    private JButton outlinedButton(String label, Color color,
+                                   java.util.function.Consumer<ActionEvent> action) {
+        JButton button = button(label, action);
+        button.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(color, 2),
+                BorderFactory.createEmptyBorder(3, 9, 3, 9)));
         return button;
     }
 
@@ -193,7 +209,7 @@ public final class BrushOptimizer {
             gridStepBox.setSelectedItem(2);
             minMoveBox.setSelectedItem(0);
         } else {
-            gridStepBox.setSelectedItem(32);
+            gridStepBox.setSelectedItem(2);
             minMoveBox.setSelectedItem(32);
         }
         gridStepBox.setEnabled(!preserveCurveLines.isSelected());
@@ -287,7 +303,7 @@ public final class BrushOptimizer {
         logPane.setText("");
         issues = List.of();
         analyzedMap = "";
-        preview.showBrush("", AssistantTheme.MUTED, "Analyze a brush to preview it");
+        preview.showBrush("", AssistantTheme.MUTED, "Press Analyze");
         statusLabel.setText(" ");
     }
 

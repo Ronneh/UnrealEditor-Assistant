@@ -35,6 +35,8 @@ Open the release page, download **Unreal Editor 2 Assistant v1.zip** from its
 - **Brush Optimizer** checks pasted T3D brushes for off-grid vertices,
   planarity problems, and alignment issues. Every proposed change can be
   reviewed before the corrected map data is copied.
+- **Prefab Explorer** organizes T3D/TXT prefabs in folders, edits raw code and
+  shows selectable animated brush previews, with search, undo/redo and safe auto-save.
 - **Double** prepares duplicated team-based map content for the opposite
   team by updating FlagBases, PlayerStarts, Tags, and Events.
 

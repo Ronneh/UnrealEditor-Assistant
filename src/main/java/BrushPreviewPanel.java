@@ -5,6 +5,9 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Insets;
 import java.awt.RenderingHints;
+import java.awt.Cursor;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.geom.Line2D;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,26 +21,57 @@ public final class BrushPreviewPanel extends JPanel {
     private static final Pattern NUMBER = Pattern.compile(
             "[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?");
     private double angle;
+    private double tilt = Math.toRadians(58);
+    private int dragY;
     private final Timer animation = new Timer(16, event -> {
         angle += 0.009;
         repaint();
     });
     private List<List<Point3>> polygons = List.of();
     private Color wireColor = AssistantTheme.MUTED;
-    private String caption = "Analyze a brush to preview it";
+    private String caption = "Press Analyze";
 
     public BrushPreviewPanel() {
         setBackground(Color.BLACK);
         setOpaque(true);
         setPreferredSize(new Dimension(285, 170));
         setMinimumSize(new Dimension(220, 120));
+        setToolTipText("Hold the left mouse button and drag up or down to tilt the brush");
+        MouseAdapter tiltControl = new MouseAdapter() {
+            @Override public void mousePressed(MouseEvent event) {
+                if (event.getButton() != MouseEvent.BUTTON1) return;
+                dragY = event.getY();
+                setCursor(Cursor.getPredefinedCursor(Cursor.N_RESIZE_CURSOR));
+            }
+
+            @Override public void mouseDragged(MouseEvent event) {
+                if ((event.getModifiersEx() & MouseEvent.BUTTON1_DOWN_MASK) == 0) return;
+                int delta = event.getY() - dragY;
+                tilt -= delta * 0.012;
+                dragY = event.getY();
+                repaint();
+            }
+
+            @Override public void mouseReleased(MouseEvent event) {
+                if (event.getButton() == MouseEvent.BUTTON1) setCursor(Cursor.getDefaultCursor());
+            }
+        };
+        addMouseListener(tiltControl);
+        addMouseMotionListener(tiltControl);
         updateBorderTitle();
     }
 
     public void showBrush(String code, Color color, String source) {
-        polygons = parseFirstBrush(code);
+        showBrush(code, color, source, 0);
+    }
+
+    public void showBrush(String code, Color color, String source, int brushIndex) {
+        List<List<List<Point3>>> brushes = parseBrushes(code);
+        int index = Math.max(0, Math.min(brushIndex, brushes.size() - 1));
+        polygons = brushes.isEmpty() ? List.of() : brushes.get(index);
         wireColor = color;
-        caption = polygons.isEmpty() ? "No brush vertices found" : source;
+        caption = polygons.isEmpty() ? ("Press Analyze".equals(source) ? source : "No brush vertices found") : source
+                + (brushes.size() > 1 ? " (" + (index + 1) + "/" + brushes.size() + ")" : "");
         angle = 0;
         updateBorderTitle();
         if (!polygons.isEmpty() && !animation.isRunning()) animation.start();
@@ -63,13 +97,15 @@ public final class BrushPreviewPanel extends JPanel {
         super.paintComponent(graphics);
         Graphics2D g = (Graphics2D) graphics.create();
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        Insets insets = getInsets();
+        g.setColor(AssistantTheme.BACKGROUND);
+        g.fillRect(1, 1, Math.max(0, getWidth() - 2), Math.max(0, insets.top - 1));
         if (polygons.isEmpty()) {
             g.dispose();
             return;
         }
 
         Bounds bounds = bounds(polygons);
-        Insets insets = getInsets();
         double availableWidth = Math.max(1, getWidth() - insets.left - insets.right - 24);
         double availableHeight = Math.max(1, getHeight() - insets.top - insets.bottom - 20);
         double scale = Math.min(availableWidth, availableHeight)
@@ -77,7 +113,6 @@ public final class BrushPreviewPanel extends JPanel {
         double centerX = insets.left + (getWidth() - insets.left - insets.right) / 2.0;
         double centerY = insets.top + (getHeight() - insets.top - insets.bottom) / 2.0 + 3;
         double cos = Math.cos(angle), sin = Math.sin(angle);
-        double tilt = Math.toRadians(58);
         double tiltCos = Math.cos(tilt), tiltSin = Math.sin(tilt);
 
         g.setColor(wireColor);
@@ -107,23 +142,38 @@ public final class BrushPreviewPanel extends JPanel {
         return new ScreenPoint(centerX + rotatedX * scale, centerY + projectedY * scale);
     }
 
-    private static List<List<Point3>> parseFirstBrush(String code) {
-        List<List<Point3>> result = new ArrayList<>();
+    static int polygonCount(String code) { return parseBrushes(code).stream().mapToInt(List::size).sum(); }
+    static int brushCount(String code) { return parseBrushes(code).size(); }
+
+    private static List<List<List<Point3>>> parseBrushes(String code) {
+        List<List<List<Point3>>> brushes = new ArrayList<>();
+        List<List<Point3>> result = null;
         List<Point3> polygon = null;
         boolean insideBrush = false;
+        boolean insidePolyList = false;
         for (String line : code.split("\\R")) {
             String trimmed = line.trim();
-            if (trimmed.startsWith("Begin Brush")) {
-                if (insideBrush) break;
+            if (startsWithIgnoreCase(trimmed, "Begin Brush")) {
+                if (insideBrush && result != null && !result.isEmpty()) brushes.add(List.copyOf(result));
                 insideBrush = true;
+                result = new ArrayList<>();
             } else if (insideBrush && trimmed.equalsIgnoreCase("End Brush")) {
-                break;
-            } else if (insideBrush && trimmed.startsWith("Begin Polygon")) {
+                if (result != null && !result.isEmpty()) brushes.add(List.copyOf(result));
+                result = null; polygon = null; insideBrush = false; insidePolyList = false;
+            } else if (startsWithIgnoreCase(trimmed, "Begin PolyList")) {
+                if (!insideBrush) result = new ArrayList<>();
+                insidePolyList = true;
+            } else if (trimmed.equalsIgnoreCase("End PolyList")) {
+                if (!insideBrush && result != null && !result.isEmpty()) brushes.add(List.copyOf(result));
+                if (!insideBrush) result = null;
+                insidePolyList = false;
+            } else if ((insideBrush || insidePolyList) && startsWithIgnoreCase(trimmed, "Begin Polygon")) {
                 polygon = new ArrayList<>();
-            } else if (insideBrush && trimmed.equalsIgnoreCase("End Polygon")) {
-                if (polygon != null && polygon.size() >= 2) result.add(List.copyOf(polygon));
+            } else if ((insideBrush || insidePolyList) && trimmed.equalsIgnoreCase("End Polygon")) {
+                if (result != null && polygon != null && polygon.size() >= 2) result.add(List.copyOf(polygon));
                 polygon = null;
-            } else if (insideBrush && polygon != null && trimmed.startsWith("Vertex")) {
+            } else if ((insideBrush || insidePolyList) && polygon != null
+                    && startsWithIgnoreCase(trimmed, "Vertex")) {
                 Matcher matcher = NUMBER.matcher(trimmed);
                 double[] values = new double[3];
                 boolean complete = true;
@@ -137,7 +187,12 @@ public final class BrushPreviewPanel extends JPanel {
                 if (complete) polygon.add(new Point3(values[0], values[1], values[2]));
             }
         }
-        return List.copyOf(result);
+        if (result != null && !result.isEmpty()) brushes.add(List.copyOf(result));
+        return List.copyOf(brushes);
+    }
+
+    private static boolean startsWithIgnoreCase(String text, String prefix) {
+        return text.regionMatches(true, 0, prefix, 0, prefix.length());
     }
 
     private static Bounds bounds(List<List<Point3>> polygons) {
