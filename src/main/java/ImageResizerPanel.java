@@ -61,7 +61,7 @@ public final class ImageResizerPanel extends JPanel {
         adjustmentTimer.setRepeats(false);
 
         JLabel heading = new JLabel("Image Resizer");
-        heading.setFont(heading.getFont().deriveFont(java.awt.Font.BOLD, 23f));
+        AssistantTheme.stylePageTitle(heading);
         JPanel title = new JPanel(new BorderLayout());
         title.setOpaque(false);
         title.add(heading, BorderLayout.WEST);
@@ -159,7 +159,7 @@ public final class ImageResizerPanel extends JPanel {
     }
 
     private void openImage(ActionEvent ignored) {
-        JFileChooser chooser = new JFileChooser();
+        JFileChooser chooser = new DarkFileChooser();
         chooser.setFileFilter(new FileNameExtensionFilter("Images (PNG, JPG, BMP, GIF)", "png", "jpg", "jpeg", "bmp", "gif"));
         chooser.setCurrentDirectory(FileSaveSupport.preferredDirectory(
                 PREFS.get(LAST_OPEN_DIRECTORY, null),
@@ -276,10 +276,10 @@ public final class ImageResizerPanel extends JPanel {
 
     private void saveImage(ActionEvent ignored) {
         if (processed == null) {
-            JOptionPane.showMessageDialog(this, "Open or paste an image first.", "No image", JOptionPane.INFORMATION_MESSAGE);
+            DarkDialogs.message(this, "Open or paste an image first.", "No image", JOptionPane.INFORMATION_MESSAGE);
             return;
         }
-        JFileChooser chooser = new JFileChooser();
+        JFileChooser chooser = new DarkFileChooser();
         chooser.setFileFilter(new FileNameExtensionFilter("PNG image", "png"));
         chooser.setSelectedFile(new File("texture.png"));
         if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
@@ -296,7 +296,7 @@ public final class ImageResizerPanel extends JPanel {
 
     private void copyImage(ActionEvent ignored) {
         if (processed == null) {
-            JOptionPane.showMessageDialog(this, "Open or paste an image first.",
+            DarkDialogs.message(this, "Open or paste an image first.",
                     "No image", JOptionPane.INFORMATION_MESSAGE);
             return;
         }
@@ -305,7 +305,7 @@ public final class ImageResizerPanel extends JPanel {
     }
 
     private void showError(String title, Exception exception) {
-        JOptionPane.showMessageDialog(this, exception.getMessage(), title, JOptionPane.ERROR_MESSAGE);
+        DarkDialogs.message(this, exception.getMessage(), title, JOptionPane.ERROR_MESSAGE);
     }
 
     private final class Preview extends JPanel {

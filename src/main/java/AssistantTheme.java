@@ -5,6 +5,7 @@ import java.util.Locale;
 import javax.swing.BorderFactory;
 import javax.swing.JSplitPane;
 import javax.swing.JPanel;
+import javax.swing.JLabel;
 import javax.swing.UIManager;
 import javax.swing.border.Border;
 import javax.swing.plaf.FontUIResource;
@@ -23,6 +24,7 @@ public final class AssistantTheme {
     public static final Color MUTED = new Color(156, 167, 184);
     public static final Color ACCENT = new Color(66, 145, 235);
     public static final Color ACCENT_DARK = new Color(39, 87, 139);
+    private static boolean dialogTitleBarsInstalled;
 
     private AssistantTheme() { }
 
@@ -68,6 +70,8 @@ public final class AssistantTheme {
         UIManager.put("ComboBox.foreground", TEXT);
         UIManager.put("ComboBox.selectionBackground", ACCENT_DARK);
         UIManager.put("ComboBox.selectionForeground", TEXT);
+        UIManager.put("ComboBox.disabledBackground", PANEL_ALT);
+        UIManager.put("ComboBox.disabledForeground", MUTED);
         UIManager.put("ComboBox.border", BorderFactory.createLineBorder(BORDER));
         UIManager.put("SpinnerUI", DarkSpinnerUI.class.getName());
         UIManager.put("Spinner.background", PANEL_ALT);
@@ -126,7 +130,39 @@ public final class AssistantTheme {
         UIManager.put("OptionPane.messageForeground", TEXT);
         UIManager.put("FileChooser.background", PANEL);
         UIManager.put("FileChooser.foreground", TEXT);
+        UIManager.put("FileChooser.listViewBackground", CODE_BACKGROUND);
+        UIManager.put("FileChooser.listViewForeground", TEXT);
+        UIManager.put("List.background", CODE_BACKGROUND);
+        UIManager.put("List.foreground", TEXT);
+        UIManager.put("List.selectionBackground", ACCENT_DARK);
+        UIManager.put("List.selectionForeground", TEXT);
+        UIManager.put("Table.background", CODE_BACKGROUND);
+        UIManager.put("Table.foreground", TEXT);
+        UIManager.put("Table.selectionBackground", ACCENT_DARK);
+        UIManager.put("Table.selectionForeground", TEXT);
+        UIManager.put("Table.gridColor", BORDER);
+        UIManager.put("TableHeader.background", PANEL_ALT);
+        UIManager.put("TableHeader.foreground", TEXT);
+        UIManager.put("TableHeader.focusCellBackground", ACCENT_DARK);
+        UIManager.put("TableHeader.focusCellForeground", TEXT);
+        UIManager.put("TableHeader.cellBorder", BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 1, 1, BORDER),
+                BorderFactory.createEmptyBorder(3, 6, 3, 6)));
+        UIManager.put("Viewport.background", CODE_BACKGROUND);
         UIManager.put("defaultFont", new FontUIResource("Verdana", Font.PLAIN, 12));
+        installDarkDialogTitleBars();
+    }
+
+    private static synchronized void installDarkDialogTitleBars() {
+        if (dialogTitleBarsInstalled || !WindowsTitleBar.isWindows(System.getProperty("os.name", ""))) return;
+        dialogTitleBarsInstalled = true;
+        java.awt.Toolkit.getDefaultToolkit().addAWTEventListener(event -> {
+            if (event instanceof java.awt.event.WindowEvent windowEvent
+                    && (windowEvent.getID() == java.awt.event.WindowEvent.WINDOW_OPENED
+                    || windowEvent.getID() == java.awt.event.WindowEvent.WINDOW_ACTIVATED))
+                javax.swing.SwingUtilities.invokeLater(() ->
+                        WindowsTitleBar.enableDark(windowEvent.getWindow()));
+        }, java.awt.AWTEvent.WINDOW_EVENT_MASK);
     }
 
     public static JPanel card(BorderLayout layout) {
@@ -136,6 +172,16 @@ public final class AssistantTheme {
                 BorderFactory.createLineBorder(BORDER),
                 BorderFactory.createEmptyBorder(16, 16, 16, 16)));
         return panel;
+    }
+
+    public static void stylePageTitle(JLabel title) {
+        title.setFont(title.getFont().deriveFont(Font.BOLD, 23f));
+        title.setVerticalAlignment(javax.swing.SwingConstants.CENTER);
+        // Large fonts appear optically lower than the smaller button captions.
+        // A little bottom inset aligns their visible text centers in header rows.
+        title.setBorder(BorderFactory.createEmptyBorder(0, 0, 4, 0));
+        java.awt.Dimension preferred = title.getPreferredSize();
+        title.setPreferredSize(new java.awt.Dimension(preferred.width, 36));
     }
 
     public static Border titled(String title) {

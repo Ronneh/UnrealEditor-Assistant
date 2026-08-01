@@ -141,7 +141,7 @@ public final class ScreenshotMakerPanel extends JPanel {
         JPanel header = new JPanel(new BorderLayout());
         header.setOpaque(false);
         JLabel title = new JLabel("Screenshot Maker");
-        title.setFont(title.getFont().deriveFont(Font.BOLD, 23f));
+        AssistantTheme.stylePageTitle(title);
         header.add(title, BorderLayout.WEST);
         JLabel info = new JLabel("1. Load & crop   >   2. Arrange & label   >   3. Export PNG");
         info.setForeground(AssistantTheme.MUTED);
@@ -495,7 +495,7 @@ public final class ScreenshotMakerPanel extends JPanel {
     }
 
     private void loadShot(int index) {
-        JFileChooser chooser=new JFileChooser();
+        JFileChooser chooser=new DarkFileChooser();
         chooser.setFileFilter(new FileNameExtensionFilter("Screenshots (PNG, JPG, BMP)","png","jpg","jpeg","bmp"));
         chooser.setCurrentDirectory(FileSaveSupport.preferredDirectory(
                 PREFS.get(LAST_OPEN_DIRECTORY, null),
@@ -516,7 +516,7 @@ public final class ScreenshotMakerPanel extends JPanel {
             if (!isValidResolution(resolution)) {
                 cropStatus.setText("Loaded "+resolution+" — this is outside the recommended resolution list, but can still be used.");
             }
-        }, exception -> JOptionPane.showMessageDialog(this, exception.getMessage(),
+        }, exception -> DarkDialogs.message(this, exception.getMessage(),
                 "Could not load screenshot", JOptionPane.ERROR_MESSAGE));
     }
 
@@ -609,7 +609,7 @@ public final class ScreenshotMakerPanel extends JPanel {
     private void showComposition() {
         for (Shot shot:shots) {
             if (shot.image==null) {
-                JOptionPane.showMessageDialog(this,"Please load all four screenshots first.","Screenshots missing",
+                DarkDialogs.message(this,"Please load all four screenshots first.","Screenshots missing",
                         JOptionPane.INFORMATION_MESSAGE);
                 return;
             }
@@ -660,7 +660,7 @@ public final class ScreenshotMakerPanel extends JPanel {
                 break;
             }
         }
-        JFileChooser chooser=new JFileChooser();
+        JFileChooser chooser=new DarkFileChooser();
         chooser.setFileFilter(new FileNameExtensionFilter("PNG image","png"));
         chooser.setCurrentDirectory(FileSaveSupport.preferredDirectory(
                 PREFS.get(LAST_EXPORT_DIRECTORY, null),
@@ -675,7 +675,7 @@ public final class ScreenshotMakerPanel extends JPanel {
         File targetFile = file;
         BufferedImage export = composition.renderOutput(exportSize, false);
         AsyncImageIO.savePng(export, targetFile, () -> { },
-                exception -> JOptionPane.showMessageDialog(this, exception.getMessage(),
+                exception -> DarkDialogs.message(this, exception.getMessage(),
                         "Could not export PNG", JOptionPane.ERROR_MESSAGE));
     }
 

@@ -18,6 +18,7 @@ import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
+import javax.swing.DropMode;
 import javax.swing.JEditorPane;
 import javax.swing.Icon;
 import javax.swing.JLabel;
@@ -110,6 +111,11 @@ public final class NotesPanel extends JPanel {
             }
         });
         tree.addTreeSelectionListener(event -> selectEntry());
+        tree.setDropMode(DropMode.INSERT);
+        if (!java.awt.GraphicsEnvironment.isHeadless()) tree.setDragEnabled(true);
+        tree.setTransferHandler(new FileTreeReorderHandler(tree, storageRoot,
+                value -> ((Entry) value).path, this::reloadTree,
+                exception -> showError("Could not move the item.", exception), null));
 
         JPanel editorPanel = new JPanel(new BorderLayout(0, 3));
         editorPanel.setOpaque(false);
@@ -296,7 +302,7 @@ public final class NotesPanel extends JPanel {
     private void createNote() {
         Path folder = selectedFolder();
         if (folder == null) {
-            JOptionPane.showMessageDialog(this, "Select a folder first.",
+            DarkDialogs.message(this, "Select a folder first.",
                     "No folder selected", JOptionPane.INFORMATION_MESSAGE);
             return;
         }
@@ -358,7 +364,7 @@ public final class NotesPanel extends JPanel {
         String suffix = entry.folder ? "" : ".html";
         Path target = entry.path.resolveSibling(safeName(name) + suffix);
         if (Files.exists(target)) {
-            JOptionPane.showMessageDialog(this, "An item with this name already exists.",
+            DarkDialogs.message(this, "An item with this name already exists.",
                     "Rename", JOptionPane.WARNING_MESSAGE);
             return;
         }
@@ -374,10 +380,7 @@ public final class NotesPanel extends JPanel {
     private void deleteSelection() {
         Entry entry = selectedEntry();
         if (entry == null || entry.path == null || entry.path.equals(storageRoot)) return;
-        int choice = JOptionPane.showConfirmDialog(this,
-                "Delete \"" + entry.name + "\"? This cannot be undone.",
-                "Delete item", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-        if (choice != JOptionPane.YES_OPTION) return;
+        if (!DeleteConfirmationSupport.confirm(this, entry.name)) return;
         try {
             if (entry.folder) {
                 try (var paths = Files.walk(entry.path)) {
@@ -408,12 +411,7 @@ public final class NotesPanel extends JPanel {
 
     private void loadChildren(DefaultMutableTreeNode parentNode, Path folder) {
         try (var children = Files.list(folder)) {
-            children.sorted((first, second) -> {
-                boolean firstFolder = Files.isDirectory(first);
-                boolean secondFolder = Files.isDirectory(second);
-                if (firstFolder != secondFolder) return firstFolder ? -1 : 1;
-                return first.getFileName().toString().compareToIgnoreCase(second.getFileName().toString());
-            }).forEach(path -> {
+            FileTreeOrder.sort(folder, children.toList()).forEach(path -> {
                 if (Files.isDirectory(path)) {
                     DefaultMutableTreeNode folderNode = new DefaultMutableTreeNode(
                             new Entry(path.getFileName().toString(), path, true));
@@ -458,7 +456,7 @@ public final class NotesPanel extends JPanel {
     }
 
     private String askName(String title, String message, String initial) {
-        String value = (String) JOptionPane.showInputDialog(this, message, title,
+        String value = (String) DarkDialogs.input(this, message, title,
                 JOptionPane.PLAIN_MESSAGE, null, null, initial);
         return value == null || value.trim().isEmpty() ? null : value.trim();
     }
@@ -507,7 +505,7 @@ public final class NotesPanel extends JPanel {
     }
 
     private void showError(String message, Exception exception) {
-        JOptionPane.showMessageDialog(this, message + "\n" + exception.getMessage(),
+        DarkDialogs.message(this, message + "\n" + exception.getMessage(),
                 "Map notes", JOptionPane.ERROR_MESSAGE);
     }
 

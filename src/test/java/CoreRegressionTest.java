@@ -9,15 +9,120 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
 import javax.swing.JComponent;
+import javax.swing.JComboBox;
 import javax.swing.JTextArea;
 import javax.swing.JTextPane;
 import javax.swing.KeyStroke;
 import org.junit.jupiter.api.Test;
 
 class CoreRegressionTest {
+    @Test
+    void brushOptimizerDefaultsToTwoUnitGrid() throws Exception {
+        BrushOptimizer optimizer = new BrushOptimizer();
+        optimizer.createContent();
+        Field field = BrushOptimizer.class.getDeclaredField("gridStepBox");
+        field.setAccessible(true);
+
+        assertEquals(2, ((JComboBox<?>) field.get(optimizer)).getSelectedItem());
+    }
+
+    @Test
+    void manualFileTreeOrderIsPersisted() throws Exception {
+        Path folder = Files.createTempDirectory("tree-order");
+        Path alpha = Files.writeString(folder.resolve("Alpha.t3d"), "A");
+        Path beta = Files.writeString(folder.resolve("Beta.t3d"), "B");
+
+        FileTreeOrder.place(folder, beta, 0);
+        List<Path> ordered = FileTreeOrder.sort(folder, List.of(alpha, beta));
+
+        assertEquals(List.of(beta, alpha), ordered);
+    }
+
+    @Test
+    void prefabExplorerSupportsBothRedoShortcuts() throws Exception {
+        PrefabExplorerPanel panel = new PrefabExplorerPanel(Files.createTempDirectory("prefab-redo"));
+        Field field = PrefabExplorerPanel.class.getDeclaredField("code");
+        field.setAccessible(true);
+        JTextArea editor = (JTextArea) field.get(panel);
+
+        assertEquals("redoPrefab", shortcut(editor, "control Y"));
+        assertEquals("redoPrefab", shortcut(editor, "control shift Z"));
+        Field selectorField = PrefabExplorerPanel.class.getDeclaredField("brushSelector");
+        selectorField.setAccessible(true);
+        JComboBox<?> selector = (JComboBox<?>) selectorField.get(panel);
+        assertEquals("None", selector.getSelectedItem());
+        assertFalse(selector.isEnabled());
+    }
+
+    @Test
+    void prefabPasteAddsExactlyOneTrailingLineBreak() {
+        String lineBreak = System.lineSeparator();
+
+        assertEquals("Begin Brush" + lineBreak,
+                PrefabExplorerPanel.withTrailingLineBreak("Begin Brush"));
+        assertEquals("Begin Brush\n", PrefabExplorerPanel.withTrailingLineBreak("Begin Brush\n"));
+    }
+
+
+
+    @Test
+    void prefabExplorerRecognizesSupportedFiles() throws Exception {
+        Path folder = Files.createTempDirectory("prefab-types");
+        Path t3d = Files.writeString(folder.resolve("Hall.t3d"), "Begin Brush");
+        Path u3d = Files.writeString(folder.resolve("Lift.U3D"), "Begin Brush");
+        Path text = Files.writeString(folder.resolve("Hall.txt"), "Begin PolyList");
+
+        assertTrue(PrefabExplorerPanel.isPrefab(t3d));
+        assertTrue(PrefabExplorerPanel.isPrefab(text));
+        assertFalse(PrefabExplorerPanel.isPrefab(u3d));
+        assertEquals(new Color(34, 211, 238), PrefabExplorerPanel.PREFAB_COLOR);
+    }
+
+    @Test
+    void brushPreviewAcceptsStandalonePolyList() {
+        String polyList = """
+                Begin PolyList
+                    Begin Polygon Texture=Default
+                        Vertex   +00000.000000,+00000.000000,+00000.000000
+                        Vertex   +00128.000000,+00000.000000,+00000.000000
+                        Vertex   +00128.000000,+00128.000000,+00000.000000
+                    End Polygon
+                End PolyList""";
+
+        assertEquals(1, BrushPreviewPanel.polygonCount(polyList));
+    }
+
+    @Test
+    void brushPreviewFindsMultipleBrushes() {
+        String brush = """
+                Begin Brush
+                  Begin PolyList
+                    Begin Polygon
+                      Vertex 0,0,0
+                      Vertex 1,0,0
+                    End Polygon
+                  End PolyList
+                End Brush
+                """;
+
+        assertEquals(2, BrushPreviewPanel.brushCount(brush + brush));
+        assertEquals(2, BrushPreviewPanel.polygonCount(brush + brush));
+    }
+
+    @Test
+    void atomicTextFileReplacesExistingContent() throws Exception {
+        Path file = Files.writeString(Files.createTempFile("atomic-prefab", ".t3d"), "old");
+
+        AtomicTextFile.write(file, "new prefab");
+
+        assertEquals("new prefab", Files.readString(file));
+    }
+
     @Test
     void detectsWindowsForNativeTitleBarStyling() {
         assertTrue(WindowsTitleBar.isWindows("Windows 11"));

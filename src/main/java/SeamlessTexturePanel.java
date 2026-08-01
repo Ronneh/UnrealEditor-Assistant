@@ -103,7 +103,7 @@ public final class SeamlessTexturePanel extends JPanel {
     }
 
     private void loadImage() {
-        JFileChooser chooser = new JFileChooser();
+        JFileChooser chooser = new DarkFileChooser();
         chooser.setFileFilter(new FileNameExtensionFilter(
                 "Images (PNG, JPG, BMP)", "png", "jpg", "jpeg", "bmp"));
         chooser.setCurrentDirectory(FileSaveSupport.preferredDirectory(
@@ -205,7 +205,7 @@ public final class SeamlessTexturePanel extends JPanel {
             showInputError("Generate a seamless texture first.");
             return;
         }
-        JFileChooser chooser = new JFileChooser();
+        JFileChooser chooser = new DarkFileChooser();
         chooser.setFileFilter(new FileNameExtensionFilter("PNG image", "png"));
         chooser.setSelectedFile(new File("seamless-texture.png"));
         if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
@@ -220,7 +220,7 @@ public final class SeamlessTexturePanel extends JPanel {
         AsyncImageIO.savePng(image, targetFile, () -> {
             status.setForeground(new Color(94, 205, 130));
             status.setText("Saved " + targetFile.getName() + ".");
-        }, exception -> JOptionPane.showMessageDialog(this, "The PNG could not be saved.",
+        }, exception -> DarkDialogs.message(this, "The PNG could not be saved.",
                 "Save texture", JOptionPane.ERROR_MESSAGE));
     }
 

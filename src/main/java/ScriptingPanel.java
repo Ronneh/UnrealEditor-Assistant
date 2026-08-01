@@ -210,7 +210,7 @@ public final class ScriptingPanel extends JPanel {
     }
 
     private void insertTemplate(String name) {
-        if (dirty && JOptionPane.showConfirmDialog(this,
+        if (dirty && DarkDialogs.confirm(this,
                 "Replace the current source with the selected template?", "Insert template",
                 JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) return;
         currentFile = null;
@@ -273,7 +273,7 @@ public final class ScriptingPanel extends JPanel {
     }
 
     private JFileChooser scriptChooser() {
-        JFileChooser chooser = new JFileChooser();
+        JFileChooser chooser = new DarkFileChooser();
         chooser.setFileFilter(new FileNameExtensionFilter("UnrealScript source (*.uc)", "uc"));
         if (currentFile != null) chooser.setCurrentDirectory(currentFile.toFile().getParentFile());
         return chooser;
@@ -413,14 +413,14 @@ public final class ScriptingPanel extends JPanel {
     }
 
     private void chooseUcc() {
-        JFileChooser chooser = new JFileChooser();
+        JFileChooser chooser = new DarkFileChooser();
         chooser.setDialogTitle("Select Unreal Tournament compiler");
         chooser.setFileFilter(new FileNameExtensionFilter("UCC executable (ucc.exe)", "exe"));
         if (uccExecutable != null) chooser.setSelectedFile(uccExecutable.toFile());
         if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return;
         Path selected = chooser.getSelectedFile().toPath();
         if (!selected.getFileName().toString().equalsIgnoreCase("ucc.exe")) {
-            JOptionPane.showMessageDialog(this, "Select ucc.exe in UnrealTournament\\System.",
+            DarkDialogs.message(this, "Select ucc.exe in UnrealTournament\\System.",
                     "Invalid compiler", JOptionPane.WARNING_MESSAGE);
             return;
         }
@@ -443,7 +443,7 @@ public final class ScriptingPanel extends JPanel {
         if (!save()) return;
         String setupIssue = compilerSetupIssue();
         if (setupIssue != null) {
-            JOptionPane.showMessageDialog(this, setupIssue, "Package setup required",
+            DarkDialogs.message(this, setupIssue, "Package setup required",
                     JOptionPane.WARNING_MESSAGE);
             status.setText("Compilation stopped: package setup is incomplete.");
             return;
@@ -546,7 +546,7 @@ public final class ScriptingPanel extends JPanel {
     }
 
     private boolean confirmDiscard() {
-        return !dirty || JOptionPane.showConfirmDialog(this, "Discard the unsaved changes?",
+        return !dirty || DarkDialogs.confirm(this, "Discard the unsaved changes?",
                 "Unsaved script", JOptionPane.YES_NO_OPTION,
                 JOptionPane.WARNING_MESSAGE) == JOptionPane.YES_OPTION;
     }
@@ -561,7 +561,7 @@ public final class ScriptingPanel extends JPanel {
     }
 
     private void showError(String message, Exception exception) {
-        JOptionPane.showMessageDialog(this, message + "\n" + exception.getMessage(),
+        DarkDialogs.message(this, message + "\n" + exception.getMessage(),
                 "Scripting", JOptionPane.ERROR_MESSAGE);
     }
 
