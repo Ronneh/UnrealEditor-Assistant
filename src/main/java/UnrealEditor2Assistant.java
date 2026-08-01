@@ -240,7 +240,7 @@ public final class UnrealEditor2Assistant {
         features.add(featureInfo("Brush Optimizer",
                 "Find and fix off-grid brush vertices safely."));
         features.add(featureInfo("Prefab Explorer",
-                "Organize T3D/TXT prefab notes and preview brushes instantly."));
+                "Organize and preview prefabs instantly."));
         features.add(featureInfo("Double",
                 "Prepare duplicated map content for the opposite team."));
         features.add(featureInfo("Screenshot Maker",

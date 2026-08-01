@@ -43,6 +43,7 @@ import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreePath;
 import javax.swing.event.HyperlinkEvent;
+import javax.swing.plaf.basic.BasicSplitPaneUI;
 
 /** UnrealScript editor, offline advisor, and UCC compiler front end. */
 public final class ScriptingPanel extends JPanel {
@@ -145,10 +146,9 @@ public final class ScriptingPanel extends JPanel {
     private JPanel createUccActions() {
         JPanel actions = new JPanel(new BorderLayout());
         actions.setBackground(AssistantTheme.BACKGROUND);
-        actions.setBorder(BorderFactory.createEmptyBorder(5, 0, 5, 0));
         JPanel analysis = new JPanel(new EdgeAlignedFlowLayout(FlowLayout.LEFT, 6, 0));
         analysis.setOpaque(false);
-        analysis.add(button("Analyze", event -> analyze()));
+        analysis.add(button("Analyze", event -> analyzeAndShow()));
         actions.add(analysis, BorderLayout.WEST);
         JPanel compiler = new JPanel(new EdgeAlignedFlowLayout(FlowLayout.RIGHT, 6, 0));
         compiler.setOpaque(false);
@@ -168,14 +168,11 @@ public final class ScriptingPanel extends JPanel {
     private JSplitPane createWorkspace() {
         JPanel source = new JPanel(new BorderLayout(0, 4));
         source.setOpaque(false);
-        JPanel editorHeader = new JPanel(new BorderLayout(0, 2));
-        editorHeader.setBackground(AssistantTheme.BACKGROUND);
-        editorHeader.add(createToolbar(), BorderLayout.NORTH);
-        source.add(editorHeader, BorderLayout.NORTH);
+        source.add(createToolbar(), BorderLayout.NORTH);
         updateFileLabel();
         source.add(sourceScroll, BorderLayout.CENTER);
         assistantTabs.addTab("Learn", createLearningPanel());
-        assistantTabs.addTab("Recommendations", new JScrollPane(advice));
+        assistantTabs.addTab("Analysis", new JScrollPane(advice));
         assistantTabs.addTab("Reference", new JScrollPane(reference));
         assistantTabs.addTab("Editor Guide", new JScrollPane(editorGuideContext));
         assistantTabs.addTab("Compiler output", new JScrollPane(compilerOutput));
@@ -208,9 +205,15 @@ public final class ScriptingPanel extends JPanel {
         upperSection.add(actionSplit, BorderLayout.SOUTH);
         JSplitPane workspace = new JSplitPane(JSplitPane.VERTICAL_SPLIT,
                 upperSection, assistantTabs);
-        workspace.setResizeWeight(0.62);
-        workspace.setDividerLocation(430);
+        workspace.setResizeWeight(0.52);
+        workspace.setDividerLocation(353);
         AssistantTheme.styleSplitPane(workspace);
+        workspace.setDividerSize(10);
+        if (workspace.getUI() instanceof BasicSplitPaneUI ui) {
+            ui.getDivider().setBackground(java.awt.Color.BLACK);
+            ui.getDivider().setBorder(BorderFactory.createMatteBorder(
+                    1, 0, 1, 0, AssistantTheme.BORDER));
+        }
         return workspace;
     }
 
@@ -272,11 +275,19 @@ public final class ScriptingPanel extends JPanel {
         try {
             Files.createDirectories(scriptLibrary);
             Files.createDirectories(tutorialsFolder);
+            try (var existing = Files.list(tutorialsFolder)) {
+                for (Path path : existing.filter(Files::isRegularFile)
+                        .filter(path -> path.getFileName().toString().toLowerCase(Locale.ROOT)
+                                .matches("\\d{2}_.*\\.uc")).toList()) {
+                    Files.delete(path);
+                }
+            }
             for (int index = 0; index < UnrealScriptLearning.LESSONS.length; index++) {
                 String lesson = UnrealScriptLearning.LESSONS[index];
                 Path file = tutorialPath(lesson);
                 String source = UnrealScriptLearning.exampleForLesson(lesson);
                 Files.writeString(file, source, StandardCharsets.ISO_8859_1);
+                FileTreeOrder.place(tutorialsFolder, file, index);
             }
         } catch (IOException exception) {
             showError("The script library could not be initialized.", exception);
@@ -462,9 +473,8 @@ public final class ScriptingPanel extends JPanel {
     }
 
     private Path tutorialPath(String lesson) {
-        int index = java.util.Arrays.asList(UnrealScriptLearning.LESSONS).indexOf(lesson);
         String name = safeScriptName(lesson).replaceAll("[^A-Za-z0-9._ -]", "_");
-        return tutorialsFolder.resolve(String.format(Locale.ROOT, "%02d_%s.uc", index + 1, name));
+        return tutorialsFolder.resolve(name + ".uc");
     }
 
     private String tutorialDisplayName(Path path) {
@@ -647,7 +657,7 @@ public final class ScriptingPanel extends JPanel {
 
     private void installShortcuts() {
         shortcut("control S", "save", this::save);
-        shortcut("F6", "analyze", () -> { analyze(); return true; });
+        shortcut("F6", "analyze", () -> { analyzeAndShow(); return true; });
         shortcut("F7", "compile", () -> { compile(); return true; });
     }
 
@@ -791,6 +801,15 @@ public final class ScriptingPanel extends JPanel {
                 && !source.matches("(?is).*\\bEvent\\s*=\\s*\\w+.*"))
             results.add(tip("Set the placed actor's <code>Event</code> in UnrealEd. It must match "
                     + "the target Mover or actor <code>Tag</code>."));
+        if (source.matches("(?is).*class\\s+BTLaunchPad\\b.*")
+                && !source.matches("(?is).*Player\\.Velocity\\s*=\\s*LaunchVelocity.*"))
+            results.add(warning("Add <code>Player.Velocity = LaunchVelocity;</code> after calculating the vector."));
+        if (source.matches("(?is).*class\\s+BTMoverEventTrigger\\b.*")
+                && !source.matches("(?is).*TriggerEvent\\s*\\(\\s*Event.*"))
+            results.add(warning("Add <code>TriggerEvent(Event, Self, EventInstigator);</code> inside Trigger()."));
+        if (source.matches("(?is).*class\\s+BTNetworkHelper\\b.*")
+                && !source.matches("(?is).*RemoteRole\\s*=.*"))
+            results.add(warning("Add <code>RemoteRole=ROLE_SimulatedProxy</code> in defaultproperties."));
         checkDefaultProperties(source, results);
         if (results.stream().noneMatch(f -> f.level != Level.TIP))
             results.add(new Finding(Level.OK, "No structural problems found. UCC remains authoritative."));
@@ -804,6 +823,11 @@ public final class ScriptingPanel extends JPanel {
         long errors = results.stream().filter(f -> f.level == Level.ERROR).count();
         long warnings = results.stream().filter(f -> f.level == Level.WARNING).count();
         status.setText("Analysis complete: " + errors + " error(s), " + warnings + " warning(s).");
+    }
+
+    private void analyzeAndShow() {
+        analyze();
+        assistantTabs.setSelectedIndex(1);
     }
 
     private void checkDefaultProperties(String source, List<Finding> results) {
@@ -850,20 +874,17 @@ public final class ScriptingPanel extends JPanel {
     }
 
     private void render(List<Finding> results) {
-        StringBuilder out = new StringBuilder("""
-                <html><body style='font-family:sans-serif;background:#11151b;color:#e8edf4;padding:10px'>
-                """);
+        boolean hasError = results.stream().anyMatch(finding -> finding.level == Level.ERROR);
+        boolean hasWarning = results.stream().anyMatch(finding -> finding.level == Level.WARNING);
+        String color = hasError ? "#ef7777" : hasWarning ? "#e7bd68" : "#66cf8e";
+        StringBuilder out = new StringBuilder("<html><body style='font-family:sans-serif;"
+                + "background:#11151b;color:#e8edf4;padding:10px'><div style='margin:8px 0;"
+                + "padding:10px;border-left:4px solid " + color + ";background:#1e242e'>"
+                + "<b style='color:" + color + "'>Tips</b><br><br>");
         for (Finding finding : results) {
-            String color = switch (finding.level) {
-                case ERROR -> "#ef7777"; case WARNING -> "#e7bd68";
-                case TIP -> "#79aef0"; case OK -> "#66cf8e";
-            };
-            out.append("<div style='margin:8px 0;padding:8px;border-left:4px solid ")
-                    .append(color).append(";background:#1e242e'><b style='color:")
-                    .append(color).append("'>").append(finding.level.label)
-                    .append("</b><br>").append(finding.message).append("</div>");
+            out.append("&#8226; ").append(finding.message).append("<br><br>");
         }
-        out.append("</body></html>");
+        out.append("</div></body></html>");
         advice.setText(out.toString());
         advice.setCaretPosition(0);
     }

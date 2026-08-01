@@ -7,9 +7,9 @@ public final class UnrealScriptLearning {
             "Basic Actor", "BT Message Trigger", "BT Launch Pad", "Timed Trigger", "Mutator"
     };
     public static final String[] LESSONS = {
-            "1. Class structure", "2. Events and functions", "3. defaultproperties",
-            "4. Touch trigger", "5. Launch pad", "6. Timers and events",
-            "7. Movers and map events", "8. Networking basics", "9. Package compilation"
+            "Code Syntax Part 1", "Code Syntax Part 2", "Code Syntax Part 3",
+            "Player Touch Detection", "Launch Pad Velocity", "Timers and Events",
+            "Movers and Map Events", "Networking Basics", "Package Compilation"
     };
 
     private static final Map<String, String> TEMPLATE_SOURCE = new LinkedHashMap<>();
@@ -134,7 +134,7 @@ public final class UnrealScriptLearning {
                 }
                 """);
 
-        LESSON_SOURCE.put("1. Class structure", """
+        LESSON_SOURCE.put("Code Syntax Part 1", """
                 class MyBTActor expands Actor;
 
                 defaultproperties
@@ -143,7 +143,7 @@ public final class UnrealScriptLearning {
                     RemoteRole=ROLE_None
                 }
                 """);
-        LESSON_SOURCE.put("2. Events and functions", """
+        LESSON_SOURCE.put("Code Syntax Part 2", """
                 class BTEventExample expands Triggers;
 
                 event PostBeginPlay()
@@ -161,7 +161,7 @@ public final class UnrealScriptLearning {
                     bHidden=True
                 }
                 """);
-        LESSON_SOURCE.put("3. defaultproperties", """
+        LESSON_SOURCE.put("Code Syntax Part 3", """
                 class BTDefaultsExample expands Triggers;
 
                 defaultproperties
@@ -323,6 +323,182 @@ function Timer()
                 <p>If an old package prevents rebuilding, back it up and remove it deliberately
                 before compiling. The assistant never deletes compiled packages automatically.</p>
                 """));
+        installExercises();
+    }
+
+    private static void installExercises() {
+        LESSON_SOURCE.clear();
+        LESSON_SOURCE.put("Code Syntax Part 1", """
+                class MyBTActor expands Actor
+
+                defaultproperties
+                {
+                    bHidden=False
+                }
+                """);
+        LESSON_SOURCE.put("Code Syntax Part 2", """
+                class BTEventExample expands Triggers;
+
+                function Trigger(Actor Other, Pawn EventInstigator)
+                    TriggerEvent(Event, Self, EventInstigator);
+                }
+
+                defaultproperties
+                {
+                    bHidden=True
+                }
+                """);
+        LESSON_SOURCE.put("Code Syntax Part 3", """
+                class BTDefaultsExample expands Triggers;
+
+                defaultproperties
+                {
+                    bHidden=True;
+                    bCollideActors=True
+                    CollisionRadius=40.000000
+                }
+                """);
+        LESSON_SOURCE.put("Player Touch Detection", """
+                class BTMessageTrigger expands Triggers;
+
+                function Touch(Actor Other)
+                {
+                    local PlayerPawn Player;
+
+                    // TODO: convert Other to PlayerPawn and store it in Player.
+                    if (Player == None)
+                        return;
+                    Player.ClientMessage("Checkpoint reached");
+                }
+
+                defaultproperties
+                {
+                    bHidden=True
+                    bCollideActors=True
+                    CollisionRadius=40.000000
+                }
+                """);
+        LESSON_SOURCE.put("Launch Pad Velocity", """
+                class BTLaunchPad expands Triggers;
+
+                var() float ForwardSpeed;
+                var() float UpwardSpeed;
+
+                function Touch(Actor Other)
+                {
+                    local Pawn Player;
+                    local Vector LaunchVelocity;
+
+                    Player = Pawn(Other);
+                    if (Player == None)
+                        return;
+                    LaunchVelocity = Vector(Rotation) * ForwardSpeed;
+                    LaunchVelocity.Z = UpwardSpeed;
+                    // TODO: apply LaunchVelocity to Player.
+                }
+
+                defaultproperties
+                {
+                    ForwardSpeed=900.000000
+                    UpwardSpeed=500.000000
+                    bCollideActors=True
+                }
+                """);
+        LESSON_SOURCE.put("Timers and Events", """
+                class BTDelayedTrigger expands Triggers;
+
+                var Pawn TriggeringPlayer;
+
+                function Trigger(Actor Other, Pawn EventInstigator)
+                {
+                    TriggeringPlayer = EventInstigator;
+                    SetTimer(1.0, False);
+                }
+
+                // TODO: add Timer() and trigger Event here.
+
+                defaultproperties
+                {
+                    bHidden=True
+                }
+                """);
+        LESSON_SOURCE.put("Movers and Map Events", """
+                class BTMoverEventTrigger expands Triggers;
+
+                function Trigger(Actor Other, Pawn EventInstigator)
+                {
+                    // TODO: trigger actors whose Tag matches this actor's Event.
+                }
+
+                defaultproperties
+                {
+                    bHidden=True
+                    Event=OpenMover
+                }
+                """);
+        LESSON_SOURCE.put("Networking Basics", """
+                class BTNetworkHelper expands Actor;
+
+                simulated function PostNetBeginPlay()
+                {
+                    Super.PostNetBeginPlay();
+                }
+
+                defaultproperties
+                {
+                    // TODO: choose the RemoteRole for a predictable client proxy.
+                }
+                """);
+        LESSON_SOURCE.put("Package Compilation", """
+                class BTPackageExample expands Actor;
+
+                // TODO: add a defaultproperties block and set RemoteRole=ROLE_None.
+                """);
+
+        LESSON_HTML.clear();
+        LESSON_HTML.put("Code Syntax Part 1", exercise("Code Syntax Part 1",
+                "Learn how a class declaration ends.",
+                "Add the single missing character at the end of the first line.",
+                "A class declaration must end with a semicolon. The file name and class name must match."));
+        LESSON_HTML.put("Code Syntax Part 2", exercise("Code Syntax Part 2",
+                "Learn where a function body begins.",
+                "Add the missing opening brace before TriggerEvent.",
+                "Every function body is enclosed by { and }. Use Analyze to check whether both braces are balanced."));
+        LESSON_HTML.put("Code Syntax Part 3", exercise("Code Syntax Part 3",
+                "Learn the assignment syntax used for initial property values.",
+                "Remove the one character that does not belong after bHidden=True.",
+                "Assignments in defaultproperties do not end with semicolons. Keep one Name=Value assignment per line."));
+        LESSON_HTML.put("Player Touch Detection", exercise("Player Touch Detection",
+                "Safely turn the touched Actor into a player reference.",
+                "Replace the TODO comment with one assignment to Player.",
+                "Use Player = PlayerPawn(Other); then keep the None check before using Player."));
+        LESSON_HTML.put("Launch Pad Velocity", exercise("Launch Pad Velocity",
+                "Apply a calculated velocity to a Pawn.",
+                "Replace the TODO comment with one assignment.",
+                "Assign LaunchVelocity to Player.Velocity. The cast and None check must happen first."));
+        LESSON_HTML.put("Timers and Events", exercise("Timers and Events",
+                "Complete the callback started by SetTimer.",
+                "Add function Timer() and call TriggerEvent inside it.",
+                "Use TriggerEvent(Event, Self, TriggeringPlayer);. SetTimer with False calls Timer once."));
+        LESSON_HTML.put("Movers and Map Events", exercise("Movers and Map Events",
+                "Connect script Events to an actor or Mover Tag.",
+                "Replace the TODO with one TriggerEvent call.",
+                "Call TriggerEvent(Event, Self, EventInstigator);. In UnrealEd, the Mover Tag must equal OpenMover."));
+        LESSON_HTML.put("Networking Basics", exercise("Networking Basics",
+                "Choose a role for an Actor that also runs simulated code on clients.",
+                "Add one RemoteRole assignment in defaultproperties.",
+                "Use RemoteRole=ROLE_SimulatedProxy for a predictable client proxy. The server remains authoritative."));
+        LESSON_HTML.put("Package Compilation", exercise("Package Compilation",
+                "Finish a minimal class before placing it in a package.",
+                "Add defaultproperties with RemoteRole=ROLE_None.",
+                "Save the class as BTPackageExample.uc under <Package>/Classes, add EditPackages=<Package>, then run ucc make."));
+    }
+
+    private static String exercise(String title, String goal, String task, String tips) {
+        return "<html><body style='font-family:sans-serif;background:#11151b;color:#e8edf4;padding:12px'>"
+                + "<div style='font-size:13px;font-weight:bold'>" + escape(title) + "</div><br>"
+                + "<b>Goal</b><br>" + goal + "<br><br><b>Your task</b><br>" + task
+                + "<br><br><b>Tips</b><br>" + tips + "</body></html>";
     }
 
     private UnrealScriptLearning() { }
@@ -332,11 +508,11 @@ function Timer()
     }
 
     public static String lesson(String name) {
-        return LESSON_HTML.getOrDefault(name, LESSON_HTML.get("1. Class structure"));
+        return LESSON_HTML.getOrDefault(name, LESSON_HTML.get("Code Syntax Part 1"));
     }
 
     public static String exampleForLesson(String lesson) {
-        return LESSON_SOURCE.getOrDefault(lesson, LESSON_SOURCE.get("1. Class structure"));
+        return LESSON_SOURCE.getOrDefault(lesson, LESSON_SOURCE.get("Code Syntax Part 1"));
     }
 
     public static String templateForLesson(String lesson) {
@@ -392,7 +568,7 @@ LifeSpan=0.000000</pre>
                     <code>Touch</code> and <code>Destroyed</code></p>
                     """;
         };
-        return page("Context reference: " + escape(parent), """
+        String reference = page("Context reference: " + escape(parent), """
                 <p>Entries are inherited from the declared parent class. Confirm unusual members
                 against exported engine classes or UCC.</p>
                 """ + contextual + """
@@ -400,11 +576,15 @@ LifeSpan=0.000000</pre>
                 <p><code>TriggerEvent(Event, Self, EventInstigator)</code> activates every actor
                 whose <code>Tag</code> matches this actor's <code>Event</code>.</p>
                 """);
+        return reference.replace("<h3>",
+                        "<br><div style='font-size:13px;font-weight:bold'>")
+                .replace("</h3>", "</div><br>");
     }
 
     private static String page(String title, String body) {
         return "<html><body style='font-family:sans-serif;background:#11151b;color:#e8edf4;"
-                + "padding:12px'><h2 style='margin-top:0'>" + title + "</h2>" + body
+                + "padding:12px'><div style='font-size:13px;font-weight:bold'>" + title
+                + "</div><br>" + body
                 + "</body></html>";
     }
 
