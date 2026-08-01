@@ -22,6 +22,21 @@ import org.junit.jupiter.api.Test;
 
 class CoreRegressionTest {
     @Test
+    void everyUnrealScriptLessonHasItsOwnExample() {
+        long distinctExamples = java.util.Arrays.stream(UnrealScriptLearning.LESSONS)
+                .map(UnrealScriptLearning::exampleForLesson)
+                .distinct()
+                .count();
+
+        assertEquals(UnrealScriptLearning.LESSONS.length, distinctExamples);
+    }
+
+    @Test
+    void todoNamesReplaceColonWithUnderscore() {
+        assertEquals("Todo_", NotesPanel.safeName("Todo:"));
+    }
+
+    @Test
     void brushOptimizerDefaultsToTwoUnitGrid() throws Exception {
         BrushOptimizer optimizer = new BrushOptimizer();
         optimizer.createContent();

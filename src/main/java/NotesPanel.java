@@ -64,6 +64,7 @@ public final class NotesPanel extends JPanel {
         rootNode.setUserObject(new Entry("All notes", storageRoot, true));
         add(createHeader(), BorderLayout.NORTH);
         add(createWorkspace(), BorderLayout.CENTER);
+        add(createActions(), BorderLayout.SOUTH);
         installShortcuts();
         reloadTree(null);
     }
@@ -74,14 +75,18 @@ public final class NotesPanel extends JPanel {
         JLabel title = new JLabel("To-Do List");
         title.setFont(title.getFont().deriveFont(Font.BOLD, 15f));
         header.add(title, BorderLayout.WEST);
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
+        return header;
+    }
+
+    private JPanel createActions() {
+        JPanel actions = new JPanel(new EdgeAlignedFlowLayout(FlowLayout.LEFT, 4, 0));
         actions.setOpaque(false);
-        actions.add(button("+ New Folder", event -> createFolder()));
+        actions.add(button("+ Folder", event -> createFolder()));
         actions.add(button("+ Note", event -> createNote()));
         actions.add(button("Rename", event -> renameSelection()));
         actions.add(button("Delete", event -> deleteSelection()));
-        header.add(actions, BorderLayout.EAST);
-        return header;
+        actions.add(button("Save", event -> saveCurrent()));
+        return actions;
     }
 
     private javax.swing.JComponent createWorkspace() {
@@ -111,17 +116,24 @@ public final class NotesPanel extends JPanel {
             }
         });
         tree.addTreeSelectionListener(event -> selectEntry());
-        tree.setDropMode(DropMode.INSERT);
+        tree.setDropMode(DropMode.ON_OR_INSERT);
         if (!java.awt.GraphicsEnvironment.isHeadless()) tree.setDragEnabled(true);
         tree.setTransferHandler(new FileTreeReorderHandler(tree, storageRoot,
-                value -> ((Entry) value).path, this::reloadTree,
+                value -> ((Entry) value).path, this::reloadAfterMove,
                 exception -> showError("Could not move the item.", exception), null));
 
         JPanel editorPanel = new JPanel(new BorderLayout(0, 3));
         editorPanel.setOpaque(false);
         editorTitle.setForeground(AssistantTheme.MUTED);
-        editorPanel.add(editorTitle, BorderLayout.NORTH);
-        editorPanel.add(createEditorArea(), BorderLayout.CENTER);
+        JPanel editorHeader = new JPanel(new BorderLayout(0, 3));
+        editorHeader.setOpaque(false);
+        editorHeader.add(editorTitle, BorderLayout.NORTH);
+        editorHeader.add(createFormattingToolbar(), BorderLayout.SOUTH);
+        editorPanel.add(editorHeader, BorderLayout.NORTH);
+        JScrollPane editorScroll = new JScrollPane(editor);
+        editorScroll.setBorder(BorderFactory.createLineBorder(AssistantTheme.BORDER));
+        editorPanel.add(editorScroll, BorderLayout.CENTER);
+        editor.setEnabled(false);
 
         JScrollPane treeScroll = new JScrollPane(tree);
         treeScroll.setPreferredSize(new Dimension(185, 180));
@@ -132,12 +144,10 @@ public final class NotesPanel extends JPanel {
         return all;
     }
 
-    private JPanel createEditorArea() {
-        JPanel panel = new JPanel(new BorderLayout(0, 3));
-        panel.setOpaque(false);
+    private JPanel createFormattingToolbar() {
         JPanel toolbar = new JPanel();
         toolbar.setOpaque(false);
-        toolbar.setLayout(new FlowLayout(FlowLayout.LEFT, 3, 0));
+        toolbar.setLayout(new EdgeAlignedFlowLayout(FlowLayout.LEFT, 3, 0));
         JComboBox<Integer> sizes = new JComboBox<>(new Integer[] { 10, 12, 14, 16, 18, 24, 32 });
         sizes.setSelectedItem(14);
         sizes.setPreferredSize(new Dimension(48, 23));
@@ -151,12 +161,7 @@ public final class NotesPanel extends JPanel {
         colorButton.setIcon(new ColorCircleIcon());
         colorButton.setToolTipText("Text color");
         toolbar.add(colorButton);
-        toolbar.add(button("Save", event -> saveCurrent()));
-        panel.add(toolbar, BorderLayout.NORTH);
-        panel.add(new JScrollPane(editor), BorderLayout.CENTER);
-
-        editor.setEnabled(false);
-        return panel;
+        return toolbar;
     }
 
     private static JEditorPane htmlPane(boolean editable) {
@@ -409,6 +414,12 @@ public final class NotesPanel extends JPanel {
         if (select != null) selectPath(rootNode, select);
     }
 
+    private void reloadAfterMove(Path target) {
+        if (selectedNote != null && !Files.exists(selectedNote) && Files.isRegularFile(target))
+            selectedNote = target;
+        reloadTree(target);
+    }
+
     private void loadChildren(DefaultMutableTreeNode parentNode, Path folder) {
         try (var children = Files.list(folder)) {
             FileTreeOrder.sort(folder, children.toList()).forEach(path -> {
@@ -495,7 +506,7 @@ public final class NotesPanel extends JPanel {
         return candidate;
     }
 
-    private static String safeName(String name) {
+    static String safeName(String name) {
         String safe = name.replaceAll("[\\\\/:*?\"<>|]", "_").trim();
         return safe.isEmpty() ? "Untitled" : safe;
     }

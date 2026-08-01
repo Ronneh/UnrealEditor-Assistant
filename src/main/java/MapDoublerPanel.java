@@ -31,7 +31,6 @@ import javax.swing.JTextField;
 import javax.swing.JTextPane;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
-import javax.swing.BoxLayout;
 import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
@@ -61,7 +60,7 @@ public final class MapDoublerPanel extends JPanel {
     private final JTextArea inputArea = codeArea();
     private final JTextArea outputArea = codeArea();
     private final JTextPane logArea = new JTextPane();
-    private final JLabel status = new JLabel("Paste your map code here, then press Analyze and Double map.");
+    private final JLabel status = new JLabel("Paste your map code here, then press Analyze and Double map!");
 
     public MapDoublerPanel() {
         super(new BorderLayout(8, 8));
@@ -75,24 +74,14 @@ public final class MapDoublerPanel extends JPanel {
     private JPanel createControls() {
         JPanel controls = new JPanel(new BorderLayout(12, 0));
         controls.setOpaque(false);
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-        actions.setOpaque(false);
-        actions.add(button("Analyze", event -> analyze(false)));
-        actions.add(button("Double map!", event -> analyze(true)));
-        actions.add(button("Copy result", this::copyResult));
-        actions.add(button("Paste", this::pasteInput));
-        actions.add(button("Reset", this::reset));
-        controls.add(actions, BorderLayout.WEST);
-
-        JPanel messages = new JPanel();
-        messages.setOpaque(false);
-        messages.setLayout(new BoxLayout(messages, BoxLayout.Y_AXIS));
-        JLabel note = new JLabel("All necessary Events and Tags in the map must contain the word 'red'!");
+        JLabel heading = new JLabel("Double Map");
+        AssistantTheme.stylePageTitle(heading);
+        controls.add(heading, BorderLayout.WEST);
+        JLabel note = new JLabel("<html>All necessary Events and Tags in the map must contain the word "
+                + "'<font color='#ef5f5f'>red</font>'!</html>");
         note.setForeground(new Color(235, 184, 80));
-        messages.add(note);
-        status.setForeground(AssistantTheme.MUTED);
-        messages.add(status);
-        controls.add(messages, BorderLayout.CENTER);
+        note.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+        controls.add(note, BorderLayout.EAST);
         return controls;
     }
 
@@ -111,7 +100,26 @@ public final class MapDoublerPanel extends JPanel {
         logScroll.setBorder(AssistantTheme.titled("Log"));
         logScroll.setPreferredSize(new Dimension(900, 175));
 
-        JSplitPane workspaceSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, codeSplit, logScroll);
+        JPanel actions = new JPanel(new EdgeAlignedFlowLayout(FlowLayout.LEFT, 8, 0));
+        actions.setBackground(AssistantTheme.BACKGROUND);
+        actions.add(button("Analyze", event -> analyze(false)));
+        actions.add(button("Double map!", event -> analyze(true)));
+        actions.add(button("Paste", this::pasteInput));
+        actions.add(button("Copy result", this::copyResult));
+        actions.add(button("Reset", this::reset));
+        status.setForeground(AssistantTheme.MUTED);
+        status.setVerticalAlignment(javax.swing.SwingConstants.CENTER);
+        JPanel actionRow = new JPanel(new BorderLayout(0, 3));
+        actionRow.setBackground(AssistantTheme.BACKGROUND);
+        actionRow.add(status, BorderLayout.NORTH);
+        actionRow.add(actions, BorderLayout.CENTER);
+
+        JPanel codeAndActions = new JPanel(new BorderLayout(0, 5));
+        codeAndActions.setBackground(AssistantTheme.BACKGROUND);
+        codeAndActions.add(codeSplit, BorderLayout.CENTER);
+        codeAndActions.add(actionRow, BorderLayout.SOUTH);
+
+        JSplitPane workspaceSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, codeAndActions, logScroll);
         workspaceSplit.setResizeWeight(0.76);
         workspaceSplit.setContinuousLayout(true);
         styleSplitPane(workspaceSplit);

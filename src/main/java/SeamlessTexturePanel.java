@@ -36,7 +36,7 @@ public final class SeamlessTexturePanel extends JPanel {
     private static final Integer[] OUTPUT_SIZES = { 128, 256, 512, 1024 };
     private static final Preferences PREFS = Preferences.userNodeForPackage(SeamlessTexturePanel.class);
     private static final String LAST_OPEN_DIRECTORY = "lastOpenDirectory";
-    private final ImageCanvas inputCanvas = new ImageCanvas("Load or paste a source image.");
+    private final ImageCanvas inputCanvas = new ImageCanvas("Load or Paste an image.");
     private final ImageCanvas outputCanvas = new ImageCanvas("The seamless result will appear here.");
     private final JComboBox<Integer> outputSize = new JComboBox<>(OUTPUT_SIZES);
     private final JLabel status = new JLabel("Load an image or press Ctrl+V.");
@@ -54,24 +54,36 @@ public final class SeamlessTexturePanel extends JPanel {
     }
 
     private JPanel createControls() {
-        JPanel controls = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 7, 0));
+        JPanel controls = new JPanel(new BorderLayout(12, 0));
         controls.setOpaque(false);
-        controls.add(button("Load image...", event -> loadImage()));
-        controls.add(button("Paste", event -> pasteImage()));
-        controls.add(new JLabel("Output size:"));
+        JPanel sourceActions = new JPanel(new EdgeAlignedFlowLayout(java.awt.FlowLayout.LEFT, 7, 0));
+        sourceActions.setOpaque(false);
+        sourceActions.add(button("Paste", event -> pasteImage()));
+        sourceActions.add(button("Load image...", event -> loadImage()));
+        sourceActions.add(new JLabel("Output size:"));
         outputSize.setSelectedItem(512);
         outputSize.setPreferredSize(new Dimension(90, 26));
         outputSize.addActionListener(event -> {
             if (source != null) generate();
         });
-        controls.add(outputSize);
-        controls.add(new JLabel("px"));
-        controls.add(button("Generate", event -> generate()));
-        controls.add(button("Copy result", event -> copyResult()));
-        controls.add(button("Save PNG...", event -> saveResult()));
+        sourceActions.add(outputSize);
+        sourceActions.add(new JLabel("px"));
+        sourceActions.add(button("Generate", event -> generate()));
+        controls.add(sourceActions, BorderLayout.WEST);
+        JPanel resultActions = new JPanel(new EdgeAlignedFlowLayout(java.awt.FlowLayout.RIGHT, 7, 0));
+        resultActions.setOpaque(false);
+        resultActions.add(button("Save PNG...", event -> saveResult()));
+        resultActions.add(button("Copy result", event -> copyResult()));
+        controls.add(resultActions, BorderLayout.EAST);
         status.setForeground(AssistantTheme.MUTED);
-        controls.add(status);
-        return controls;
+        JPanel header = new JPanel(new BorderLayout(0, 6));
+        header.setBackground(AssistantTheme.BACKGROUND);
+        JLabel heading = new JLabel("Seamless Texture");
+        AssistantTheme.stylePageTitle(heading);
+        header.add(heading, BorderLayout.NORTH);
+        header.add(controls, BorderLayout.CENTER);
+        header.add(status, BorderLayout.SOUTH);
+        return header;
     }
 
     private JComponent createWorkspace() {

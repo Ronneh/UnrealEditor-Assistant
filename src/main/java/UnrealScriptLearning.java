@@ -14,6 +14,7 @@ public final class UnrealScriptLearning {
 
     private static final Map<String, String> TEMPLATE_SOURCE = new LinkedHashMap<>();
     private static final Map<String, String> LESSON_HTML = new LinkedHashMap<>();
+    private static final Map<String, String> LESSON_SOURCE = new LinkedHashMap<>();
 
     static {
         TEMPLATE_SOURCE.put("Basic Actor", """
@@ -130,6 +131,86 @@ public final class UnrealScriptLearning {
 
                 defaultproperties
                 {
+                }
+                """);
+
+        LESSON_SOURCE.put("1. Class structure", """
+                class MyBTActor expands Actor;
+
+                defaultproperties
+                {
+                    bHidden=False
+                    RemoteRole=ROLE_None
+                }
+                """);
+        LESSON_SOURCE.put("2. Events and functions", """
+                class BTEventExample expands Triggers;
+
+                event PostBeginPlay()
+                {
+                    Super.PostBeginPlay();
+                }
+
+                function Trigger(Actor Other, Pawn EventInstigator)
+                {
+                    TriggerEvent(Event, Self, EventInstigator);
+                }
+
+                defaultproperties
+                {
+                    bHidden=True
+                }
+                """);
+        LESSON_SOURCE.put("3. defaultproperties", """
+                class BTDefaultsExample expands Triggers;
+
+                defaultproperties
+                {
+                    bHidden=True
+                    bCollideActors=True
+                    CollisionRadius=40.000000
+                    CollisionHeight=40.000000
+                    RemoteRole=ROLE_None
+                }
+                """);
+        LESSON_SOURCE.put("4. Touch trigger", TEMPLATE_SOURCE.get("BT Message Trigger"));
+        LESSON_SOURCE.put("5. Launch pad", TEMPLATE_SOURCE.get("BT Launch Pad"));
+        LESSON_SOURCE.put("6. Timers and events", TEMPLATE_SOURCE.get("Timed Trigger"));
+        LESSON_SOURCE.put("7. Movers and map events", """
+                class BTMoverEventTrigger expands Triggers;
+
+                function Trigger(Actor Other, Pawn EventInstigator)
+                {
+                    TriggerEvent(Event, Self, EventInstigator);
+                }
+
+                defaultproperties
+                {
+                    bHidden=True
+                    RemoteRole=ROLE_None
+                }
+                """);
+        LESSON_SOURCE.put("8. Networking basics", """
+                class BTNetworkHelper expands Actor;
+
+                simulated function PostNetBeginPlay()
+                {
+                    Super.PostNetBeginPlay();
+                }
+
+                defaultproperties
+                {
+                    RemoteRole=ROLE_SimulatedProxy
+                }
+                """);
+        LESSON_SOURCE.put("9. Package compilation", """
+                class BTPackageExample expands Actor;
+
+                // Save as BTPackageExample.uc in BTTools/Classes.
+                defaultproperties
+                {
+                    bHidden=True
+                    RemoteRole=ROLE_None
                 }
                 """);
 
@@ -252,6 +333,10 @@ function Timer()
 
     public static String lesson(String name) {
         return LESSON_HTML.getOrDefault(name, LESSON_HTML.get("1. Class structure"));
+    }
+
+    public static String exampleForLesson(String lesson) {
+        return LESSON_SOURCE.getOrDefault(lesson, LESSON_SOURCE.get("1. Class structure"));
     }
 
     public static String templateForLesson(String lesson) {

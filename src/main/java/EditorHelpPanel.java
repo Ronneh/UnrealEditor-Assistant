@@ -255,14 +255,14 @@ public final class EditorHelpPanel extends JPanel {
         DefaultMutableTreeNode root = new DefaultMutableTreeNode(new TreeEntry("Editor Help", null));
         for (JsonNode node : pack.tableOfContents()) root.add(createTreeNode(node));
         categoryTree.setModel(new DefaultTreeModel(root));
-        status.setText(pack.documents().size() + " English tutorials");
+        status.setText(pack.documents().size() + " tutorials");
         searchField.setEnabled(true);
         if (root.getChildCount() > 0) {
             categoryTree.expandPath(new TreePath(root.getPath()));
         }
         showMessage("Unreal Editor 2 Help",
                 "Browse the contents on the left or search all " + pack.documents().size()
-                        + " English tutorials.");
+                        + " tutorials.");
     }
 
     private DefaultMutableTreeNode createTreeNode(JsonNode json) {
@@ -280,7 +280,7 @@ public final class EditorHelpPanel extends JPanel {
         resultModel.clear();
         if (query.isEmpty()) {
             browseTabs.setSelectedIndex(0);
-            status.setText(pack.documents().size() + " English tutorials");
+            status.setText(pack.documents().size() + " tutorials");
             return;
         }
         try {
@@ -346,7 +346,7 @@ public final class EditorHelpPanel extends JPanel {
         forwardHistory.clear();
         showMessage("Unreal Editor 2 Help",
                 "Browse the contents on the left or search all " + pack.documents().size()
-                        + " English tutorials.");
+                        + " tutorials.");
         updateNavigationButtons();
     }
 
