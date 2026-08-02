@@ -48,6 +48,7 @@ import javax.swing.undo.UndoManager;
 /** Folder-based library for editable T3D/text prefab snippets with a live brush preview. */
 public final class PrefabExplorerPanel extends JPanel {
     static final Color PREFAB_COLOR = new Color(34, 211, 238);
+    private static final int WORKSPACE_HEADER_HEIGHT = 42;
     private static final String LAST_FILE_DIRECTORY = "prefabLastFileDirectory";
     private static final java.util.prefs.Preferences PREFERENCES =
             java.util.prefs.Preferences.userNodeForPackage(PrefabExplorerPanel.class);
@@ -119,7 +120,13 @@ public final class PrefabExplorerPanel extends JPanel {
         treeScroll.setBorder(AssistantTheme.titled("Prefabs"));
         filterField.setToolTipText("Filter folders and prefab files");
         filterField.setBorder(AssistantTheme.titled("Search"));
-        JPanel explorer = new JPanel(new BorderLayout(0, 5));
+        filterField.setPreferredSize(new Dimension(0, WORKSPACE_HEADER_HEIGHT));
+        Color explorerBackground = filterField.getBackground();
+        tree.setBackground(explorerBackground);
+        treeScroll.setBackground(explorerBackground);
+        treeScroll.getViewport().setBackground(explorerBackground);
+        treeScroll.setViewportBorder(null);
+        JPanel explorer = new JPanel(new BorderLayout());
         explorer.setOpaque(false);
         explorer.add(filterField, BorderLayout.NORTH);
         explorer.add(treeScroll, BorderLayout.CENTER);
@@ -138,6 +145,7 @@ public final class PrefabExplorerPanel extends JPanel {
         title.setForeground(PREFAB_COLOR);
         title.setFont(title.getFont().deriveFont(Font.BOLD, 16f));
         title.setBorder(BorderFactory.createEmptyBorder(9, 0, 10, 0));
+        title.setPreferredSize(new Dimension(0, WORKSPACE_HEADER_HEIGHT));
         codePanel.add(title, BorderLayout.NORTH);
         JScrollPane codeScroll = new JScrollPane(code);
         codeScroll.setBorder(BorderFactory.createLineBorder(AssistantTheme.BORDER));
@@ -206,6 +214,8 @@ public final class PrefabExplorerPanel extends JPanel {
             @Override public java.awt.Component getTreeCellRendererComponent(JTree tree, Object value,
                     boolean selected, boolean expanded, boolean leaf, int row, boolean focus) {
                 super.getTreeCellRendererComponent(tree, value, selected, expanded, leaf, row, focus);
+                setBackgroundNonSelectionColor(tree.getBackground());
+                if (!selected) setBackground(tree.getBackground());
                 if (value instanceof DefaultMutableTreeNode node && node.getUserObject() instanceof Entry entry && entry.folder)
                     setIcon(UIManager.getIcon(expanded ? "Tree.openIcon" : "Tree.closedIcon"));
                 return this;

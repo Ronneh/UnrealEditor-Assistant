@@ -46,12 +46,15 @@ import javax.swing.tree.TreePath;
 /** Persistent per-map folders with rich-text notes and a read-only preview. */
 public final class NotesPanel extends JPanel {
     private static final String EMPTY_HTML = "<html><body><p></p></body></html>";
+    private static final int ACTION_GAP = 4;
     private final Path storageRoot;
     private final DefaultMutableTreeNode rootNode = new DefaultMutableTreeNode();
     private final DefaultTreeModel treeModel = new DefaultTreeModel(rootNode);
     private final JTree tree = new JTree(treeModel);
     private final JEditorPane editor = htmlPane(true);
     private final JLabel editorTitle = new JLabel("Select or create a note");
+    private JButton addFolderButton;
+    private JButton addNoteButton;
     private Path selectedNote;
     private boolean loading;
 
@@ -62,9 +65,10 @@ public final class NotesPanel extends JPanel {
         storageRoot = resolveStorageRoot();
         initializeStorage();
         rootNode.setUserObject(new Entry("All notes", storageRoot, true));
+        JPanel actions = createActions();
         add(createHeader(), BorderLayout.NORTH);
         add(createWorkspace(), BorderLayout.CENTER);
-        add(createActions(), BorderLayout.SOUTH);
+        add(actions, BorderLayout.SOUTH);
         installShortcuts();
         reloadTree(null);
     }
@@ -79,10 +83,12 @@ public final class NotesPanel extends JPanel {
     }
 
     private JPanel createActions() {
-        JPanel actions = new JPanel(new EdgeAlignedFlowLayout(FlowLayout.LEFT, 4, 0));
+        JPanel actions = new JPanel(new EdgeAlignedFlowLayout(FlowLayout.LEFT, ACTION_GAP, 0));
         actions.setOpaque(false);
-        actions.add(button("+ Folder", event -> createFolder()));
-        actions.add(button("+ Note", event -> createNote()));
+        addFolderButton = button("+ Folder", event -> createFolder());
+        addNoteButton = button("+ Note", event -> createNote());
+        actions.add(addFolderButton);
+        actions.add(addNoteButton);
         actions.add(button("Rename", event -> renameSelection()));
         actions.add(button("Delete", event -> deleteSelection()));
         actions.add(button("Save", event -> saveCurrent()));
@@ -136,11 +142,13 @@ public final class NotesPanel extends JPanel {
         editor.setEnabled(false);
 
         JScrollPane treeScroll = new JScrollPane(tree);
-        treeScroll.setPreferredSize(new Dimension(185, 180));
+        int dividerLocation = addFolderButton.getPreferredSize().width
+                + ACTION_GAP + addNoteButton.getPreferredSize().width + ACTION_GAP / 2;
+        treeScroll.setPreferredSize(new Dimension(dividerLocation, 180));
         JSplitPane all = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, treeScroll, editorPanel);
         all.setResizeWeight(0.42);
         AssistantTheme.styleSplitPane(all);
-        all.setDividerLocation(185);
+        all.setDividerLocation(dividerLocation);
         return all;
     }
 

@@ -144,7 +144,7 @@ public final class ScreenshotMakerPanel extends JPanel {
         JLabel title = new JLabel("Screenshot Maker");
         AssistantTheme.stylePageTitle(title);
         header.add(title, BorderLayout.WEST);
-        JLabel info = new JLabel("1. Load & crop   >   2. Arrange & label   >   3. Export PNG");
+        JLabel info = new JLabel("1. Load & crop   >   2. Arrange & label   >   3. Export");
         info.setForeground(AssistantTheme.MUTED);
         header.add(info, BorderLayout.EAST);
         return header;
@@ -227,7 +227,7 @@ public final class ScreenshotMakerPanel extends JPanel {
         actionButtons.setOpaque(false);
         JButton back=new JButton("Adjust crops");
         back.addActionListener(event -> steps.show(stepCards,"crop"));
-        JButton export=new JButton("Export PNG...");
+        JButton export=new JButton("Export");
         export.addActionListener(event -> exportComposition());
         actionButtons.add(back);
         actionButtons.add(export);
@@ -669,22 +669,21 @@ public final class ScreenshotMakerPanel extends JPanel {
             }
         }
         JFileChooser chooser=new DarkFileChooser();
-        chooser.setFileFilter(new FileNameExtensionFilter("PNG image","png"));
+        chooser.setFileFilter(new FileNameExtensionFilter("Images (PNG, BMP)", "png", "bmp"));
         chooser.setCurrentDirectory(FileSaveSupport.preferredDirectory(
                 PREFS.get(LAST_EXPORT_DIRECTORY, null),
                 new File(System.getProperty("user.home"))));
         chooser.setSelectedFile(new File(chooser.getCurrentDirectory(), "level-screenshot.png"));
         if (chooser.showSaveDialog(this)!=JFileChooser.APPROVE_OPTION) return;
-        File file=chooser.getSelectedFile();
-        if (!file.getName().toLowerCase().endsWith(".png")) file=new File(file.getParentFile(),file.getName()+".png");
+        File file = FileSaveSupport.ensureImageExtension(chooser.getSelectedFile());
         if (!FileSaveSupport.confirmOverwrite(this, file)) return;
         File exportDirectory = file.getAbsoluteFile().getParentFile();
         if (exportDirectory != null) PREFS.put(LAST_EXPORT_DIRECTORY, exportDirectory.getAbsolutePath());
         File targetFile = file;
         BufferedImage export = composition.renderOutput(exportSize, false);
-        AsyncImageIO.savePng(export, targetFile, () -> { },
+        AsyncImageIO.save(export, targetFile, () -> { },
                 exception -> DarkDialogs.message(this, exception.getMessage(),
-                        "Could not export PNG", JOptionPane.ERROR_MESSAGE));
+                        "Could not export image", JOptionPane.ERROR_MESSAGE));
     }
 
     private final class CropCanvas extends JPanel {

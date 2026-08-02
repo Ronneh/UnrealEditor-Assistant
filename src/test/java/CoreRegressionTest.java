@@ -277,6 +277,17 @@ class CoreRegressionTest {
                 new File(home, "missing").getPath(), home));
     }
 
+    @Test
+    void imageExportSupportsPngAndBmpExtensions() {
+        File folder = new File("exports");
+        assertEquals(new File(folder, "texture.png"),
+                FileSaveSupport.ensureImageExtension(new File(folder, "texture")));
+        assertEquals(new File(folder, "texture.bmp"),
+                FileSaveSupport.ensureImageExtension(new File(folder, "texture.bmp")));
+        assertEquals("png", FileSaveSupport.imageFormat(new File(folder, "texture.png")));
+        assertEquals("bmp", FileSaveSupport.imageFormat(new File(folder, "texture.BMP")));
+    }
+
     private static Object shortcut(JTextArea area, String keyStroke) {
         return area.getInputMap(JComponent.WHEN_FOCUSED).get(KeyStroke.getKeyStroke(keyStroke));
     }
