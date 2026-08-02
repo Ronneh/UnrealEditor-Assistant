@@ -59,7 +59,7 @@ public final class NotesPanel extends JPanel {
     private boolean loading;
 
     public NotesPanel() {
-        super(new BorderLayout(6, 6));
+        super(new BorderLayout(6, 3));
         setOpaque(false);
         setPreferredSize(new Dimension(445, 220));
         storageRoot = resolveStorageRoot();
@@ -142,6 +142,7 @@ public final class NotesPanel extends JPanel {
         editor.setEnabled(false);
 
         JScrollPane treeScroll = new JScrollPane(tree);
+        treeScroll.setBorder(BorderFactory.createLineBorder(AssistantTheme.BORDER));
         int dividerLocation = addFolderButton.getPreferredSize().width
                 + ACTION_GAP + addNoteButton.getPreferredSize().width + ACTION_GAP / 2;
         treeScroll.setPreferredSize(new Dimension(dividerLocation, 180));

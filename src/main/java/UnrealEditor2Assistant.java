@@ -165,11 +165,11 @@ public final class UnrealEditor2Assistant {
         JPanel dashboard = new JPanel(new BorderLayout(12, 0));
         dashboard.setOpaque(false);
         dashboard.setBorder(BorderFactory.createEmptyBorder(8, 0, 0, 0));
-        dashboard.add(createMapNotes(), BorderLayout.CENTER);
+        dashboard.add(createFeatureGuide(), BorderLayout.CENTER);
         JPanel weatherPosition = new JPanel(new BorderLayout(0, 12));
         weatherPosition.setOpaque(false);
         weatherPosition.add(createWeatherAndClock(), BorderLayout.NORTH);
-        weatherPosition.add(createFeatureGuide(), BorderLayout.CENTER);
+        weatherPosition.add(createMapNotes(), BorderLayout.CENTER);
         dashboard.add(weatherPosition, BorderLayout.EAST);
         top.add(dashboard, BorderLayout.CENTER);
         home.add(top, BorderLayout.CENTER);
@@ -231,7 +231,7 @@ public final class UnrealEditor2Assistant {
         title.setFont(title.getFont().deriveFont(Font.BOLD, 17f));
         guide.add(title, BorderLayout.NORTH);
 
-        JPanel features = new JPanel(new GridLayout(0, 3, 8, 8));
+        JPanel features = new JPanel(new GridLayout(5, 2, 8, 8));
         features.setOpaque(false);
         features.add(featureInfo("To-Do List",
                 "Organize notes and tasks in folders for each map."));
@@ -254,9 +254,7 @@ public final class UnrealEditor2Assistant {
         features.add(featureInfo("Editor Guide",
                 "Browse and search the complete Unreal Editor reference guide."));
 
-        // Four equal rows: the viewport fits exactly three rows and two gaps (295 px).
-        // At the bottom the scroll offset is therefore exactly one row plus one gap.
-        features.setPreferredSize(new Dimension(680, 396));
+        features.setPreferredSize(new Dimension(430, 500));
         featureScroll = new JScrollPane(features,
                 JScrollPane.VERTICAL_SCROLLBAR_NEVER, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         featureScroll.setBorder(BorderFactory.createEmptyBorder());
