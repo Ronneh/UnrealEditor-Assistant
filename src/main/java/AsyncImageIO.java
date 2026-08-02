@@ -27,12 +27,14 @@ public final class AsyncImageIO {
         }.execute();
     }
 
-    public static void savePng(BufferedImage image, File file, Runnable onSuccess,
-                               Consumer<Exception> onError) {
+    public static void save(BufferedImage image, File file, Runnable onSuccess,
+                            Consumer<Exception> onError) {
         new SwingWorker<Void, Void>() {
             @Override protected Void doInBackground() throws Exception {
-                if (!ImageIO.write(image, "png", file)) {
-                    throw new IllegalStateException("No PNG writer is available.");
+                String format = FileSaveSupport.imageFormat(file);
+                BufferedImage output = format.equals("bmp") ? withoutAlpha(image) : image;
+                if (!ImageIO.write(output, format, file)) {
+                    throw new IllegalStateException("No " + format.toUpperCase() + " writer is available.");
                 }
                 return null;
             }
@@ -46,6 +48,15 @@ public final class AsyncImageIO {
                 }
             }
         }.execute();
+    }
+
+    private static BufferedImage withoutAlpha(BufferedImage image) {
+        BufferedImage output = new BufferedImage(
+                image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_RGB);
+        for (int y = 0; y < image.getHeight(); y++) {
+            for (int x = 0; x < image.getWidth(); x++) output.setRGB(x, y, image.getRGB(x, y));
+        }
+        return output;
     }
 
     private static Exception cause(Exception exception) {

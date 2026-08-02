@@ -36,6 +36,7 @@ public final class SeamlessTexturePanel extends JPanel {
     private static final Integer[] OUTPUT_SIZES = { 128, 256, 512, 1024 };
     private static final Preferences PREFS = Preferences.userNodeForPackage(SeamlessTexturePanel.class);
     private static final String LAST_OPEN_DIRECTORY = "lastOpenDirectory";
+    private static final String LAST_EXPORT_DIRECTORY = "lastExportDirectory";
     private final ImageCanvas inputCanvas = new ImageCanvas("Load or Paste an image.");
     private final ImageCanvas outputCanvas = new ImageCanvas("The seamless result will appear here.");
     private final JComboBox<Integer> outputSize = new JComboBox<>(OUTPUT_SIZES);
@@ -59,7 +60,7 @@ public final class SeamlessTexturePanel extends JPanel {
         JPanel sourceActions = new JPanel(new EdgeAlignedFlowLayout(java.awt.FlowLayout.LEFT, 7, 0));
         sourceActions.setOpaque(false);
         sourceActions.add(button("Paste", event -> pasteImage()));
-        sourceActions.add(button("Load image...", event -> loadImage()));
+        sourceActions.add(button("Import image", event -> loadImage()));
         sourceActions.add(new JLabel("Output size:"));
         outputSize.setSelectedItem(512);
         outputSize.setPreferredSize(new Dimension(90, 26));
@@ -72,7 +73,7 @@ public final class SeamlessTexturePanel extends JPanel {
         controls.add(sourceActions, BorderLayout.WEST);
         JPanel resultActions = new JPanel(new EdgeAlignedFlowLayout(java.awt.FlowLayout.RIGHT, 7, 0));
         resultActions.setOpaque(false);
-        resultActions.add(button("Save PNG...", event -> saveResult()));
+        resultActions.add(button("Export", event -> saveResult()));
         resultActions.add(button("Copy result", event -> copyResult()));
         controls.add(resultActions, BorderLayout.EAST);
         status.setForeground(AssistantTheme.MUTED);
@@ -218,21 +219,24 @@ public final class SeamlessTexturePanel extends JPanel {
             return;
         }
         JFileChooser chooser = new DarkFileChooser();
-        chooser.setFileFilter(new FileNameExtensionFilter("PNG image", "png"));
-        chooser.setSelectedFile(new File("seamless-texture.png"));
+        chooser.setFileFilter(new FileNameExtensionFilter("Images (PNG, BMP)", "png", "bmp"));
+        chooser.setCurrentDirectory(FileSaveSupport.preferredDirectory(
+                PREFS.get(LAST_EXPORT_DIRECTORY, null),
+                new File(System.getProperty("user.home"))));
+        chooser.setSelectedFile(new File(chooser.getCurrentDirectory(), "seamless-texture.png"));
         if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
-        File file = chooser.getSelectedFile();
-        if (!file.getName().toLowerCase().endsWith(".png"))
-            file = new File(file.getParentFile(), file.getName() + ".png");
+        File file = FileSaveSupport.ensureImageExtension(chooser.getSelectedFile());
         if (!FileSaveSupport.confirmOverwrite(this, file)) return;
+        File exportDirectory = file.getAbsoluteFile().getParentFile();
+        if (exportDirectory != null) PREFS.put(LAST_EXPORT_DIRECTORY, exportDirectory.getAbsolutePath());
         File targetFile = file;
         BufferedImage image = result;
         status.setForeground(AssistantTheme.MUTED);
         status.setText("Saving " + targetFile.getName() + "...");
-        AsyncImageIO.savePng(image, targetFile, () -> {
+        AsyncImageIO.save(image, targetFile, () -> {
             status.setForeground(new Color(94, 205, 130));
             status.setText("Saved " + targetFile.getName() + ".");
-        }, exception -> DarkDialogs.message(this, "The PNG could not be saved.",
+        }, exception -> DarkDialogs.message(this, "The image could not be exported.",
                 "Save texture", JOptionPane.ERROR_MESSAGE));
     }
 

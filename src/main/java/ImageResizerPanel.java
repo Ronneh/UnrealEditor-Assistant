@@ -42,6 +42,7 @@ public final class ImageResizerPanel extends JPanel {
     private static final Integer[] SIZES = { 2048, 1024, 512, 256, 128, 64, 32, 16 };
     private static final Preferences PREFS = Preferences.userNodeForPackage(ImageResizerPanel.class);
     private static final String LAST_OPEN_DIRECTORY = "lastOpenDirectory";
+    private static final String LAST_EXPORT_DIRECTORY = "lastExportDirectory";
     private final Preview preview = new Preview();
     private final JLabel details = new JLabel("No image loaded", SwingConstants.CENTER);
     private final JComboBox<Integer> size = new JComboBox<>(SIZES);
@@ -123,7 +124,7 @@ public final class ImageResizerPanel extends JPanel {
         rows.add(javax.swing.Box.createVerticalGlue());
         controls.add(rows, BorderLayout.CENTER);
 
-        JButton save = new JButton("Export PNG...");
+        JButton save = new JButton("Export");
         save.addActionListener(this::saveImage);
         JButton copy = new JButton("Copy to clipboard");
         copy.addActionListener(this::copyImage);
@@ -280,18 +281,22 @@ public final class ImageResizerPanel extends JPanel {
             return;
         }
         JFileChooser chooser = new DarkFileChooser();
-        chooser.setFileFilter(new FileNameExtensionFilter("PNG image", "png"));
-        chooser.setSelectedFile(new File("texture.png"));
+        chooser.setFileFilter(new FileNameExtensionFilter("Images (PNG, BMP)", "png", "bmp"));
+        chooser.setCurrentDirectory(FileSaveSupport.preferredDirectory(
+                PREFS.get(LAST_EXPORT_DIRECTORY, null),
+                new File(System.getProperty("user.home"))));
+        chooser.setSelectedFile(new File(chooser.getCurrentDirectory(), "texture.png"));
         if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
-        File file=chooser.getSelectedFile();
-        if (!file.getName().toLowerCase().endsWith(".png")) file=new File(file.getParentFile(),file.getName()+".png");
+        File file = FileSaveSupport.ensureImageExtension(chooser.getSelectedFile());
         if (!FileSaveSupport.confirmOverwrite(this, file)) return;
+        File exportDirectory = file.getAbsoluteFile().getParentFile();
+        if (exportDirectory != null) PREFS.put(LAST_EXPORT_DIRECTORY, exportDirectory.getAbsolutePath());
         File targetFile = file;
         BufferedImage image = processed;
         details.setText("Saving " + targetFile.getName() + "...");
-        AsyncImageIO.savePng(image, targetFile,
+        AsyncImageIO.save(image, targetFile,
                 () -> details.setText("Saved " + targetFile.getAbsolutePath()),
-                exception -> showError("Could not save PNG", exception));
+                exception -> showError("Could not export image", exception));
     }
 
     private void copyImage(ActionEvent ignored) {

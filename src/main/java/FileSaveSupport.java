@@ -24,4 +24,14 @@ public final class FileSaveSupport {
         File desktop = new File(userHome, "Desktop");
         return desktop.isDirectory() ? desktop : userHome;
     }
+
+    public static File ensureImageExtension(File file) {
+        String name = file.getName().toLowerCase(java.util.Locale.ROOT);
+        if (name.endsWith(".png") || name.endsWith(".bmp")) return file;
+        return new File(file.getParentFile(), file.getName() + ".png");
+    }
+
+    public static String imageFormat(File file) {
+        return file.getName().toLowerCase(java.util.Locale.ROOT).endsWith(".bmp") ? "bmp" : "png";
+    }
 }
