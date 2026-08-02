@@ -59,7 +59,7 @@ public final class NotesPanel extends JPanel {
     private boolean loading;
 
     public NotesPanel() {
-        super(new BorderLayout(6, 6));
+        super(new BorderLayout(6, 3));
         setOpaque(false);
         setPreferredSize(new Dimension(445, 220));
         storageRoot = resolveStorageRoot();
@@ -76,7 +76,7 @@ public final class NotesPanel extends JPanel {
     private JPanel createHeader() {
         JPanel header = new JPanel(new BorderLayout());
         header.setOpaque(false);
-        JLabel title = new JLabel("To-Do List");
+        JLabel title = new JLabel("My Notes");
         title.setFont(title.getFont().deriveFont(Font.BOLD, 15f));
         header.add(title, BorderLayout.WEST);
         return header;
@@ -142,6 +142,7 @@ public final class NotesPanel extends JPanel {
         editor.setEnabled(false);
 
         JScrollPane treeScroll = new JScrollPane(tree);
+        treeScroll.setBorder(BorderFactory.createLineBorder(AssistantTheme.BORDER));
         int dividerLocation = addFolderButton.getPreferredSize().width
                 + ACTION_GAP + addNoteButton.getPreferredSize().width + ACTION_GAP / 2;
         treeScroll.setPreferredSize(new Dimension(dividerLocation, 180));
@@ -149,6 +150,7 @@ public final class NotesPanel extends JPanel {
         all.setResizeWeight(0.42);
         AssistantTheme.styleSplitPane(all);
         all.setDividerLocation(dividerLocation);
+        SplitPaneState.install(all, NotesPanel.class, "notes-editor");
         return all;
     }
 

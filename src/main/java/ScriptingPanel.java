@@ -120,9 +120,10 @@ public final class ScriptingPanel extends JPanel {
     private JPanel createToolbar() {
         JPanel bar = new JPanel(new BorderLayout());
         bar.setBackground(AssistantTheme.BACKGROUND);
-        bar.setBorder(BorderFactory.createEmptyBorder(5, 0, 3, 0));
+        bar.setBorder(BorderFactory.createEmptyBorder(5, 1, 3, 1));
         bar.setPreferredSize(new Dimension(0, 36));
-        JPanel files = row();
+        JPanel files = new JPanel(new EdgeAlignedFlowLayout(FlowLayout.LEFT, 6, 0));
+        files.setOpaque(false);
         files.add(button("New", event -> newFile()));
         files.add(button("Open...", event -> open()));
         files.add(button("Save", event -> save()));
@@ -146,6 +147,7 @@ public final class ScriptingPanel extends JPanel {
     private JPanel createUccActions() {
         JPanel actions = new JPanel(new BorderLayout());
         actions.setBackground(AssistantTheme.BACKGROUND);
+        actions.setBorder(BorderFactory.createEmptyBorder(0, 1, 0, 1));
         JPanel analysis = new JPanel(new EdgeAlignedFlowLayout(FlowLayout.LEFT, 6, 0));
         analysis.setOpaque(false);
         analysis.add(button("Analyze", event -> analyzeAndShow()));
@@ -176,6 +178,7 @@ public final class ScriptingPanel extends JPanel {
         assistantTabs.addTab("Reference", new JScrollPane(reference));
         assistantTabs.addTab("Editor Guide", new JScrollPane(editorGuideContext));
         assistantTabs.addTab("Compiler output", new JScrollPane(compilerOutput));
+        AssistantTheme.styleTabbedPane(assistantTabs);
         assistantTabs.setBackground(AssistantTheme.PANEL);
         assistantTabs.setForeground(AssistantTheme.TEXT);
         assistantTabs.setBackgroundAt(assistantTabs.getSelectedIndex(), AssistantTheme.CODE_BACKGROUND);
@@ -202,6 +205,7 @@ public final class ScriptingPanel extends JPanel {
                 event -> actionSplit.setDividerLocation(upperWorkspace.getDividerLocation()));
         actionSplit.addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY,
                 event -> upperWorkspace.setDividerLocation(actionSplit.getDividerLocation()));
+        SplitPaneState.install(upperWorkspace, ScriptingPanel.class, "browser-source");
         upperSection.add(actionSplit, BorderLayout.SOUTH);
         JSplitPane workspace = new JSplitPane(JSplitPane.VERTICAL_SPLIT,
                 upperSection, assistantTabs);
@@ -209,10 +213,11 @@ public final class ScriptingPanel extends JPanel {
         workspace.setDividerLocation(353);
         AssistantTheme.styleSplitPane(workspace);
         workspace.setDividerSize(10);
+        SplitPaneState.install(workspace, ScriptingPanel.class, "workspace-guide");
         if (workspace.getUI() instanceof BasicSplitPaneUI ui) {
             ui.getDivider().setBackground(java.awt.Color.BLACK);
             ui.getDivider().setBorder(BorderFactory.createMatteBorder(
-                    1, 0, 1, 0, AssistantTheme.BORDER));
+                    1, 0, 0, 0, AssistantTheme.BORDER));
         }
         return workspace;
     }
@@ -265,6 +270,7 @@ public final class ScriptingPanel extends JPanel {
     private JPanel createScriptActions() {
         JPanel actions = new JPanel(new EdgeAlignedFlowLayout(FlowLayout.LEFT, 5, 0));
         actions.setBackground(AssistantTheme.BACKGROUND);
+        actions.setBorder(BorderFactory.createEmptyBorder(0, 1, 0, 0));
         actions.setPreferredSize(new Dimension(330, 36));
         actions.add(button("+ Folder", event -> createScriptFolder()));
         actions.add(button("+ File", event -> createScriptFile()));

@@ -135,6 +135,7 @@ public final class EditorHelpPanel extends JPanel {
         resultsScroll.getViewport().setBackground(AssistantTheme.PANEL);
         browseTabs.setBackground(AssistantTheme.BACKGROUND);
         browseTabs.setForeground(AssistantTheme.TEXT);
+        AssistantTheme.styleTabbedPane(browseTabs);
         browseTabs.setBorder(BorderFactory.createLineBorder(AssistantTheme.BACKGROUND));
         browseTabs.addTab("Contents", contentsScroll);
         browseTabs.addTab("Search Results", resultsScroll);
@@ -223,6 +224,7 @@ public final class EditorHelpPanel extends JPanel {
         split.setResizeWeight(0.29);
         split.setDividerLocation(350);
         AssistantTheme.styleSplitPane(split);
+        SplitPaneState.install(split, EditorHelpPanel.class, "browser-viewer");
         add(split, BorderLayout.CENTER);
         showMessage("Editor Help is loading", "The external English content pack is being validated.");
     }

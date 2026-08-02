@@ -95,6 +95,7 @@ public final class MapDoublerPanel extends JPanel {
                 titledScroll("Doubled result:", outputArea));
         codeSplit.setResizeWeight(0.5);
         styleSplitPane(codeSplit);
+        SplitPaneState.install(codeSplit, MapDoublerPanel.class, "code");
 
         JScrollPane logScroll = new JScrollPane(logArea);
         logScroll.setBorder(AssistantTheme.titled("Log"));
@@ -123,6 +124,7 @@ public final class MapDoublerPanel extends JPanel {
         workspaceSplit.setResizeWeight(0.76);
         workspaceSplit.setContinuousLayout(true);
         styleSplitPane(workspaceSplit);
+        SplitPaneState.install(workspaceSplit, MapDoublerPanel.class, "workspace");
 
         JPanel workspace = new JPanel(new BorderLayout());
         workspace.setOpaque(false);

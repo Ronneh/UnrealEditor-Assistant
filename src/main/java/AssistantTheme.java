@@ -4,12 +4,14 @@ import java.awt.Font;
 import java.util.Locale;
 import javax.swing.BorderFactory;
 import javax.swing.JSplitPane;
+import javax.swing.JTabbedPane;
 import javax.swing.JPanel;
 import javax.swing.JLabel;
 import javax.swing.UIManager;
 import javax.swing.border.Border;
 import javax.swing.plaf.FontUIResource;
 import javax.swing.plaf.basic.BasicSplitPaneUI;
+import javax.swing.plaf.basic.BasicTabbedPaneUI;
 
 /** Shared colors and Swing defaults for the dark theme. */
 public final class AssistantTheme {
@@ -205,5 +207,18 @@ public final class AssistantTheme {
             ui.getDivider().setBackground(BACKGROUND);
             ui.getDivider().setBorder(BorderFactory.createEmptyBorder());
         }
+    }
+
+    public static void styleTabbedPane(JTabbedPane tabbedPane) {
+        tabbedPane.setUI(new BasicTabbedPaneUI() {
+            @Override
+            protected void installDefaults() {
+                super.installDefaults();
+                lightHighlight = CODE_BACKGROUND;
+                highlight = CODE_BACKGROUND;
+                shadow = CODE_BACKGROUND;
+                darkShadow = CODE_BACKGROUND;
+            }
+        });
     }
 }

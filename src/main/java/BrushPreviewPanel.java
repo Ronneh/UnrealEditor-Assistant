@@ -87,7 +87,11 @@ public final class BrushPreviewPanel extends JPanel {
     }
 
     private void updateBorderTitle() {
-        setBorder(AssistantTheme.titled("Brush preview: " + caption));
+        Color borderColor = getParent() == null
+                ? AssistantTheme.BACKGROUND : getParent().getBackground();
+        setBorder(javax.swing.BorderFactory.createTitledBorder(
+                javax.swing.BorderFactory.createLineBorder(borderColor),
+                "Brush preview: " + caption));
     }
 
     @Override public void removeNotify() {
@@ -97,6 +101,7 @@ public final class BrushPreviewPanel extends JPanel {
 
     @Override public void addNotify() {
         super.addNotify();
+        updateBorderTitle();
         if (!polygons.isEmpty() && !animation.isRunning()) animation.start();
     }
 

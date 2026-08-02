@@ -144,6 +144,7 @@ public final class BrushOptimizer {
                 titledScroll("Input Code:", inputArea), titledScroll("Optimized result:", outputArea));
         codeSplit.setResizeWeight(0.5);
         AssistantTheme.styleSplitPane(codeSplit);
+        SplitPaneState.install(codeSplit, BrushOptimizer.class, "code");
 
         logPane.setEditable(false);
         logPane.setFont(new Font("Verdana", Font.PLAIN, 12));
@@ -173,6 +174,7 @@ public final class BrushOptimizer {
         JSplitPane workspaceSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, codeSplit, lowerSection);
         workspaceSplit.setResizeWeight(0.78);
         AssistantTheme.styleSplitPane(workspaceSplit);
+        SplitPaneState.install(workspaceSplit, BrushOptimizer.class, "workspace");
         root.add(workspaceSplit, BorderLayout.CENTER);
         return root;
     }
