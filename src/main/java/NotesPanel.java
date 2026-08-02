@@ -76,7 +76,7 @@ public final class NotesPanel extends JPanel {
     private JPanel createHeader() {
         JPanel header = new JPanel(new BorderLayout());
         header.setOpaque(false);
-        JLabel title = new JLabel("To-Do List");
+        JLabel title = new JLabel("My Notes");
         title.setFont(title.getFont().deriveFont(Font.BOLD, 15f));
         header.add(title, BorderLayout.WEST);
         return header;

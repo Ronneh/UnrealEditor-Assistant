@@ -75,6 +75,19 @@ class CoreRegressionTest {
     }
 
     @Test
+    void prefabExplorerInstallsDefaultSpiderWithoutOverwritingIt() throws Exception {
+        Path storage = Files.createTempDirectory("prefab-defaults");
+        new PrefabExplorerPanel(storage);
+        Path spider = storage.resolve("Creatures").resolve("spider.t3d");
+
+        assertTrue(Files.size(spider) > 0);
+        Files.writeString(spider, "custom spider");
+        new PrefabExplorerPanel(storage);
+
+        assertEquals("custom spider", Files.readString(spider));
+    }
+
+    @Test
     void prefabPasteAddsExactlyOneTrailingLineBreak() {
         String lineBreak = System.lineSeparator();
 

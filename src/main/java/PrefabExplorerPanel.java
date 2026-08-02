@@ -11,6 +11,7 @@ import java.awt.datatransfer.Transferable;
 import java.awt.event.ActionEvent;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -48,6 +49,7 @@ import javax.swing.undo.UndoManager;
 /** Folder-based library for editable T3D/text prefab snippets with a live brush preview. */
 public final class PrefabExplorerPanel extends JPanel {
     static final Color PREFAB_COLOR = new Color(34, 211, 238);
+    private static final String DEFAULT_SPIDER_RESOURCE = "/default-prefabs/Creatures/spider.t3d";
     private static final int WORKSPACE_HEADER_HEIGHT = 42;
     private static final String LAST_FILE_DIRECTORY = "prefabLastFileDirectory";
     private static final java.util.prefs.Preferences PREFERENCES =
@@ -597,7 +599,20 @@ public final class PrefabExplorerPanel extends JPanel {
     }
     private JButton button(String text, java.util.function.Consumer<ActionEvent> action) { JButton button = new JButton(text); button.addActionListener(action::accept); return button; }
     private String askName(String windowTitle, String message, String initial) { String value = (String) DarkDialogs.input(this, message, windowTitle, JOptionPane.PLAIN_MESSAGE, null, null, initial); return value == null || value.trim().isEmpty() ? null : value.trim(); }
-    private void initializeStorage() { try { Files.createDirectories(storageRoot); } catch (IOException exception) { showError("Could not initialize prefab storage.", exception); } }
+    private void initializeStorage() {
+        Path spider = storageRoot.resolve("Creatures").resolve("spider.t3d");
+        try {
+            Files.createDirectories(spider.getParent());
+            if (Files.notExists(spider)) {
+                try (InputStream source = PrefabExplorerPanel.class.getResourceAsStream(DEFAULT_SPIDER_RESOURCE)) {
+                    if (source == null) throw new IOException("Missing bundled prefab: " + DEFAULT_SPIDER_RESOURCE);
+                    Files.copy(source, spider);
+                }
+            }
+        } catch (IOException exception) {
+            showError("Could not initialize prefab storage.", exception);
+        }
+    }
     private void showError(String message, Exception exception) { DarkDialogs.message(this, message + "\n" + exception.getMessage(), "Prefab Explorer", JOptionPane.ERROR_MESSAGE); }
     private static Path resolveStorageRoot() { String data = System.getenv("LOCALAPPDATA"); Path base = data == null || data.isBlank() ? Path.of(System.getProperty("user.home"), ".unreal-editor-2-assistant") : Path.of(data, "UnrealEditor2Assistant"); return base.resolve("Prefabs"); }
     static boolean isPrefab(Path path) { String name = path.getFileName().toString().toLowerCase(java.util.Locale.ROOT); return Files.isRegularFile(path) && (name.endsWith(".t3d") || name.endsWith(".txt")); }

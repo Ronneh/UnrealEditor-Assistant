@@ -135,6 +135,7 @@ public final class EditorHelpPanel extends JPanel {
         resultsScroll.getViewport().setBackground(AssistantTheme.PANEL);
         browseTabs.setBackground(AssistantTheme.BACKGROUND);
         browseTabs.setForeground(AssistantTheme.TEXT);
+        AssistantTheme.styleTabbedPane(browseTabs);
         browseTabs.setBorder(BorderFactory.createLineBorder(AssistantTheme.BACKGROUND));
         browseTabs.addTab("Contents", contentsScroll);
         browseTabs.addTab("Search Results", resultsScroll);

@@ -233,7 +233,7 @@ public final class UnrealEditor2Assistant {
 
         JPanel features = new JPanel(new GridLayout(5, 2, 8, 8));
         features.setOpaque(false);
-        features.add(featureInfo("To-Do List",
+        features.add(featureInfo("Notes Explorer",
                 "Organize notes and tasks in folders for each map."));
         features.add(featureInfo("Brush Generator",
                 "Create grid-aligned polygon brushes for common CSG tasks."));
