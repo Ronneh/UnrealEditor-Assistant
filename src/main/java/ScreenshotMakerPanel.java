@@ -54,6 +54,8 @@ import javax.swing.KeyStroke;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingConstants;
 import javax.swing.TransferHandler;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 /**
@@ -63,6 +65,7 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 public final class ScreenshotMakerPanel extends JPanel {
     private static final int OUTPUT_SIZE = 1024;
     private static final int CELL_SIZE = OUTPUT_SIZE / 2;
+    private static final int EFFECTS_WIDTH = 326;
     private static final Preferences PREFS = Preferences.userNodeForPackage(ScreenshotMakerPanel.class);
     private static final String LAST_OPEN_DIRECTORY = "lastOpenDirectory";
     private static final String LAST_EXPORT_DIRECTORY = "lastExportDirectory";
@@ -89,19 +92,21 @@ public final class ScreenshotMakerPanel extends JPanel {
     private final JCheckBox stroke = new JCheckBox("Stroke");
     private final JComboBox<String> blendMode =
             new JComboBox<>(new String[] { "Normal", "Multiply", "Screen", "Overlay", "Linear Dodge (Add)" });
+    private final JSlider outerGlowSize = new JSlider(0, 100, 50);
+    private final JSlider strokeSize = new JSlider(0, 100, 50);
     private final JSlider textOpacity = new JSlider(0, 100, 100);
-    private final JButton gradientTopColor = colorButton(Color.WHITE);
-    private final JButton gradientBottomColor = colorButton(Color.WHITE);
-    private final JButton outerGlowColor = colorButton(Color.WHITE);
-    private final JButton innerGlowColor = colorButton(Color.WHITE);
-    private final JButton satinColor = colorButton(Color.WHITE);
-    private final JButton strokeColor = colorButton(Color.WHITE);
+    private final JButton gradientTopColor = colorButton(new Color(74, 222, 255));
+    private final JButton gradientBottomColor = colorButton(new Color(86, 74, 255));
+    private final JButton outerGlowColor = colorButton(new Color(32, 211, 238));
+    private final JButton innerGlowColor = colorButton(new Color(255, 160, 64));
+    private final JButton satinColor = colorButton(new Color(120, 72, 220));
+    private final JButton strokeColor = colorButton(new Color(10, 14, 22));
     private final JCheckBox centerDividers = new JCheckBox("Center dividers");
     private final JCheckBox dividersOnTop = new JCheckBox("Always on top");
     private final JComboBox<String> dividerStyle =
             new JComboBox<>(new String[] { "Solid", "Dashed", "Dotted", "Wave" });
     private final JSpinner dividerWidth = new JSpinner(new SpinnerNumberModel(2, 1, 40, 1));
-    private final JButton dividerColor = colorButton(Color.WHITE);
+    private final JButton dividerColor = colorButton(new Color(168, 85, 247));
     private final JRadioButton[] exportSizeButtons = {
             new JRadioButton("2048x2048"), new JRadioButton("1024x1024"),
             new JRadioButton("512x512"),
@@ -141,7 +146,7 @@ public final class ScreenshotMakerPanel extends JPanel {
     private JPanel createHeader() {
         JPanel header = new JPanel(new BorderLayout());
         header.setOpaque(false);
-        JLabel title = new JLabel("Screenshot Maker");
+        JLabel title = new JLabel("Level Screenshot Maker");
         AssistantTheme.stylePageTitle(title);
         header.add(title, BorderLayout.WEST);
         JLabel info = new JLabel("1. Load & crop   >   2. Arrange & label   >   3. Export");
@@ -249,9 +254,21 @@ public final class ScreenshotMakerPanel extends JPanel {
         labelText.setBackground(AssistantTheme.PANEL_ALT);
         labelText.setForeground(AssistantTheme.TEXT);
         labelText.setCaretColor(AssistantTheme.TEXT);
-        labelText.setBorder(fontBox.getBorder());
+        labelText.setBorder(BorderFactory.createCompoundBorder(
+                fontBox.getBorder(), BorderFactory.createEmptyBorder(0, 7, 0, 0)));
         fontBox.setRenderer(new FontPreviewRenderer());
         fontBox.setSelectedItem("Verdana");
+        Dimension textFieldSize = new Dimension(245, 28);
+        labelText.setPreferredSize(textFieldSize);
+        labelText.setMinimumSize(textFieldSize);
+        fontBox.setPreferredSize(textFieldSize);
+        fontBox.setMinimumSize(textFieldSize);
+        fontBox.addActionListener(event -> applyFontToSelectedText());
+        labelText.getDocument().addDocumentListener(new DocumentListener() {
+            @Override public void insertUpdate(DocumentEvent event) { applyTextToSelectedLabel(); }
+            @Override public void removeUpdate(DocumentEvent event) { applyTextToSelectedLabel(); }
+            @Override public void changedUpdate(DocumentEvent event) { applyTextToSelectedLabel(); }
+        });
 
         if (fontSize.getEditor() instanceof JSpinner.DefaultEditor editor) {
             editor.getTextField().setBackground(AssistantTheme.PANEL_ALT);
@@ -261,27 +278,31 @@ public final class ScreenshotMakerPanel extends JPanel {
         fontSize.setBorder(fontBox.getBorder());
         fontSize.setPreferredSize(new Dimension(76, 28));
         styleSpinnerButtons(fontSize);
+        fontSize.addChangeListener(event -> applySizeToSelectedText());
+
+        JButton add=new JButton("Add Text");
+        add.addActionListener(event -> addLabel());
+        JButton remove=new JButton("Remove");
+        remove.addActionListener(event -> composition.removeSelectedLabel());
+        JPanel sizeAndButtons = new JPanel(new BorderLayout(6, 0));
+        sizeAndButtons.setOpaque(false);
+        fontSize.setPreferredSize(new Dimension(60, 28));
+        sizeAndButtons.add(fontSize, BorderLayout.WEST);
+        JPanel textButtons = new JPanel(new EdgeAlignedFlowLayout(FlowLayout.RIGHT, 6, 0));
+        textButtons.setOpaque(false);
+        textButtons.add(add);
+        textButtons.add(remove);
+        sizeAndButtons.add(textButtons, BorderLayout.EAST);
+        sizeAndButtons.setPreferredSize(new Dimension(245, 28));
 
         JPanel form = new JPanel(new java.awt.GridBagLayout());
         form.setOpaque(false);
         addFormRow(form, 0, "Text:", labelText);
         addFormRow(form, 1, "Font:", fontBox);
-        addFormRow(form, 2, "Size:", fontSize);
+        addFormRow(form, 2, "Size:", sizeAndButtons);
         form.setMaximumSize(new Dimension(Integer.MAX_VALUE, 112));
         rows.add(form);
-        rows.add(Box.createVerticalStrut(12));
-
-        JButton add=new JButton("Add text");
-        add.addActionListener(event -> addLabel());
-        JButton remove=new JButton("Remove selected text");
-        remove.addActionListener(event -> composition.removeSelectedLabel());
-        JPanel textButtons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 0));
-        textButtons.setOpaque(false);
-        textButtons.add(add);
-        textButtons.add(Box.createHorizontalStrut(8));
-        textButtons.add(remove);
-        rows.add(textButtons);
-        rows.add(Box.createVerticalStrut(8));
+        rows.add(Box.createVerticalStrut(5));
         rows.add(createTextEffectsPanel());
         rows.add(Box.createVerticalGlue());
         controls.add(rows,BorderLayout.CENTER);
@@ -291,7 +312,8 @@ public final class ScreenshotMakerPanel extends JPanel {
     private void addFormRow(JPanel form, int row, String label, JComponent field) {
         java.awt.GridBagConstraints constraints = new java.awt.GridBagConstraints();
         constraints.gridy = row;
-        constraints.insets = new java.awt.Insets(0, 0, 8, 8);
+        int bottomInset = row == 2 ? 0 : 8;
+        constraints.insets = new java.awt.Insets(0, 0, bottomInset, 8);
         constraints.anchor = java.awt.GridBagConstraints.WEST;
         form.add(new JLabel(label), constraints);
         constraints.gridx = 1;
@@ -299,7 +321,7 @@ public final class ScreenshotMakerPanel extends JPanel {
         constraints.weightx = compact ? 0 : 1;
         constraints.fill = compact ? java.awt.GridBagConstraints.NONE
                 : java.awt.GridBagConstraints.HORIZONTAL;
-        constraints.insets = new java.awt.Insets(0, 0, 8, 0);
+        constraints.insets = new java.awt.Insets(0, 0, bottomInset, 0);
         if (!compact) field.setPreferredSize(new Dimension(245, 28));
         form.add(field, constraints);
     }
@@ -308,62 +330,64 @@ public final class ScreenshotMakerPanel extends JPanel {
         JPanel effects=new JPanel();
         effects.setOpaque(false);
         effects.setLayout(new BoxLayout(effects,BoxLayout.Y_AXIS));
+        effects.setAlignmentX(CENTER_ALIGNMENT);
+        effects.setPreferredSize(new Dimension(EFFECTS_WIDTH, 390));
+        effects.setMaximumSize(new Dimension(EFFECTS_WIDTH, Integer.MAX_VALUE));
         JLabel heading=new JLabel("Effects");
         heading.setFont(heading.getFont().deriveFont(Font.BOLD,17f));
+        heading.setHorizontalAlignment(SwingConstants.LEFT);
         JPanel headingRow = new JPanel(new BorderLayout());
         headingRow.setOpaque(false);
         headingRow.add(heading, BorderLayout.WEST);
-        headingRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 24));
-        headingRow.setAlignmentX(LEFT_ALIGNMENT);
+        sizeEffectRow(headingRow, 24);
         effects.add(headingRow);
         effects.add(Box.createVerticalStrut(7));
 
+        JPanel blendRow=new JPanel(new BorderLayout(8,0));
+        blendRow.setOpaque(false);
+        sizeEffectRow(blendRow, 29);
+        blendRow.add(new JLabel("Blend Mode:"),BorderLayout.WEST);
+        blendRow.add(blendMode,BorderLayout.CENTER);
+        effects.add(blendRow);
+        effects.add(Box.createVerticalStrut(8));
+
         JPanel checks=new JPanel(new GridLayout(3,2,6,3));
         checks.setOpaque(false);
+        gradientOverlay.setHorizontalAlignment(SwingConstants.LEFT);
+        outerGlow.setHorizontalAlignment(SwingConstants.LEFT);
+        innerGlow.setHorizontalAlignment(SwingConstants.LEFT);
+        satin.setHorizontalAlignment(SwingConstants.LEFT);
+        stroke.setHorizontalAlignment(SwingConstants.LEFT);
+        sizeEffectRow(checks, 78);
         checks.add(gradientOverlay);
         checks.add(outerGlow);
         checks.add(innerGlow);
         checks.add(satin);
         checks.add(stroke);
         checks.add(new JLabel(""));
-        checks.setMaximumSize(new Dimension(Integer.MAX_VALUE,78));
         effects.add(checks);
         effects.add(Box.createVerticalStrut(8));
 
         JPanel colors=new JPanel(new GridLayout(3,2,7,5));
         colors.setOpaque(false);
+        sizeEffectRow(colors, 92);
         colors.add(colorControl("Gradient Top",gradientTopColor));
         colors.add(colorControl("Inner Glow",innerGlowColor));
         colors.add(colorControl("Gradient Bottom",gradientBottomColor));
         colors.add(colorControl("Outer Glow",outerGlowColor));
         colors.add(colorControl("Satin",satinColor));
         colors.add(colorControl("Stroke",strokeColor));
-        colors.setMaximumSize(new Dimension(Integer.MAX_VALUE,92));
         effects.add(colors);
         effects.add(Box.createVerticalStrut(8));
 
-        JPanel blendRow=new JPanel(new BorderLayout(8,0));
-        blendRow.setOpaque(false);
-        blendRow.add(new JLabel("Blend Mode:"),BorderLayout.WEST);
-        blendRow.add(blendMode,BorderLayout.CENTER);
-        blendRow.setMaximumSize(new Dimension(Integer.MAX_VALUE,29));
-        effects.add(blendRow);
-        effects.add(Box.createVerticalStrut(8));
-
-        JPanel opacityRow=new JPanel(new BorderLayout(8,0));
-        opacityRow.setOpaque(false);
-        opacityRow.add(new JLabel("Opacity:"),BorderLayout.WEST);
-        textOpacity.setOpaque(false);
-        JLabel opacityValue=new JLabel("100%");
-        opacityValue.setMinimumSize(new Dimension(52,24));
-        opacityValue.setPreferredSize(new Dimension(52,24));
-        opacityRow.add(textOpacity,BorderLayout.CENTER);
-        opacityRow.add(opacityValue,BorderLayout.EAST);
-        textOpacity.addChangeListener(event -> opacityValue.setText(textOpacity.getValue()+"%"));
-        opacityRow.setMaximumSize(new Dimension(Integer.MAX_VALUE,32));
-        effects.add(opacityRow);
-        effects.add(Box.createVerticalStrut(8));
-        effects.add(createDividerEffectsPanel());
+        effects.add(createPercentSliderRow("Outer Glow Size:", outerGlowSize));
+        effects.add(Box.createVerticalStrut(4));
+        effects.add(createPercentSliderRow("Stroke Size:", strokeSize));
+        effects.add(Box.createVerticalStrut(4));
+        effects.add(createPercentSliderRow("Opacity:", textOpacity));
+        JPanel dividerEffects = createDividerEffectsPanel();
+        sizeEffectRow(dividerEffects, 62);
+        effects.add(dividerEffects);
 
         java.awt.event.ActionListener styleChange=event -> applyEffectsToSelectedText();
         gradientOverlay.addActionListener(styleChange);
@@ -372,44 +396,62 @@ public final class ScreenshotMakerPanel extends JPanel {
         satin.addActionListener(styleChange);
         stroke.addActionListener(styleChange);
         blendMode.addActionListener(styleChange);
+        outerGlowSize.addChangeListener(event -> applyEffectsToSelectedText());
+        strokeSize.addChangeListener(event -> applyEffectsToSelectedText());
         textOpacity.addChangeListener(event -> applyEffectsToSelectedText());
         return effects;
     }
 
+    private JPanel createPercentSliderRow(String text, JSlider slider) {
+        JPanel row = new JPanel(new BorderLayout(8, 0));
+        row.setOpaque(false);
+        sizeEffectRow(row, 27);
+        JLabel label = new JLabel(text);
+        label.setPreferredSize(new Dimension(112, 24));
+        row.add(label, BorderLayout.WEST);
+        slider.setOpaque(false);
+        JLabel value = new JLabel(slider.getValue() + "%");
+        value.setMinimumSize(new Dimension(44, 24));
+        value.setPreferredSize(new Dimension(44, 24));
+        row.add(slider, BorderLayout.CENTER);
+        row.add(value, BorderLayout.EAST);
+        slider.addChangeListener(event -> value.setText(slider.getValue() + "%"));
+        return row;
+    }
+
+    private static void sizeEffectRow(JComponent component, int height) {
+        component.setAlignmentX(CENTER_ALIGNMENT);
+        component.setPreferredSize(new Dimension(EFFECTS_WIDTH, height));
+        component.setMaximumSize(new Dimension(EFFECTS_WIDTH, height));
+    }
+
     private JPanel createDividerEffectsPanel() {
-        JPanel panel = new JPanel(new java.awt.GridBagLayout());
+        JPanel panel = new JPanel();
         panel.setOpaque(false);
-        java.awt.GridBagConstraints c = new java.awt.GridBagConstraints();
-        c.anchor = java.awt.GridBagConstraints.WEST;
-        c.fill = java.awt.GridBagConstraints.HORIZONTAL;
-        c.weightx = 1;
-        c.gridwidth = 1;
-        panel.add(centerDividers, c);
-        c.gridx = 1;
-        panel.add(dividersOnTop, c);
-        c.gridy = 1;
-        c.gridx = 0;
-        c.gridwidth = 1;
-        c.insets = new java.awt.Insets(4, 0, 0, 6);
-        panel.add(new JLabel("Style:"), c);
-        c.gridx = 1;
-        panel.add(dividerStyle, c);
-        c.gridx = 0;
-        c.gridy = 2;
-        panel.add(new JLabel("Width:"), c);
-        c.gridx = 1;
-        JPanel settings = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        centerDividers.setHorizontalAlignment(SwingConstants.LEFT);
+        dividersOnTop.setHorizontalAlignment(SwingConstants.LEFT);
+        JPanel choices = new JPanel(new GridLayout(1, 2, 6, 0));
+        choices.setOpaque(false);
+        choices.add(centerDividers);
+        choices.add(dividersOnTop);
+        sizeEffectRow(choices, 27);
+        panel.add(choices);
+        JPanel settings = new JPanel(new EdgeAlignedFlowLayout(FlowLayout.LEFT, 6, 0));
         settings.setOpaque(false);
+        settings.add(new JLabel("Style:"));
+        dividerStyle.setPreferredSize(new Dimension(104, 28));
+        settings.add(dividerStyle);
+        dividerWidth.setPreferredSize(new Dimension(60, 28));
         settings.add(dividerWidth);
         settings.add(dividerColor);
-        panel.add(settings, c);
-        panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 92));
+        sizeEffectRow(settings, 29);
+        panel.add(settings);
         centerDividers.addActionListener(event -> composition.invalidatePreview());
         dividersOnTop.addActionListener(event -> composition.invalidatePreview());
         dividerStyle.addActionListener(event -> composition.invalidatePreview());
         dividerWidth.addChangeListener(event -> composition.invalidatePreview());
         dividerWidth.setBorder(fontSize.getBorder());
-        dividerWidth.setPreferredSize(new Dimension(76, 28));
         if (dividerWidth.getEditor() instanceof JSpinner.DefaultEditor editor) {
             editor.getTextField().setBackground(AssistantTheme.PANEL_ALT);
             editor.getTextField().setForeground(AssistantTheme.TEXT);
@@ -428,7 +470,6 @@ public final class ScreenshotMakerPanel extends JPanel {
         JPanel panel=new JPanel(new BorderLayout(5,0));
         panel.setOpaque(false);
         JLabel label=new JLabel(name+":");
-        label.setFont(label.getFont().deriveFont(11f));
         panel.add(label,BorderLayout.CENTER);
         swatch.setToolTipText("Choose "+name+" color");
         swatch.addActionListener(event -> chooseColor(name,swatch));
@@ -463,6 +504,8 @@ public final class ScreenshotMakerPanel extends JPanel {
         label.satin=satin.isSelected();
         label.stroke=stroke.isSelected();
         label.blendMode=blendMode.getSelectedIndex();
+        label.outerGlowSize=outerGlowSize.getValue();
+        label.strokeSize=strokeSize.getValue();
         label.opacity=textOpacity.getValue();
         label.gradientTop=gradientTopColor.getBackground();
         label.gradientBottom=gradientBottomColor.getBackground();
@@ -471,6 +514,34 @@ public final class ScreenshotMakerPanel extends JPanel {
         label.satinColor=satinColor.getBackground();
         label.strokeColor=strokeColor.getBackground();
         composition.invalidatePreview();
+    }
+
+    private void applyFontToSelectedText() {
+        int selected = composition.selectedLabel;
+        Object selectedFont = fontBox.getSelectedItem();
+        if (selected < 0 || selected >= composition.labels.size() || selectedFont == null) return;
+        composition.labels.get(selected).font = selectedFont.toString();
+        composition.invalidatePreview();
+    }
+
+    private void applySizeToSelectedText() {
+        int selected = composition.selectedLabel;
+        if (selected < 0 || selected >= composition.labels.size()) return;
+        composition.labels.get(selected).size = ((Number) fontSize.getValue()).intValue();
+        composition.invalidatePreview();
+    }
+
+    private void applyTextToSelectedLabel() {
+        int selected = composition.selectedLabel;
+        if (selected < 0 || selected >= composition.labels.size()) return;
+        composition.labels.get(selected).text = labelText.getText();
+        composition.invalidatePreview();
+    }
+
+    private void loadSelectedLabelControls(TextLabel label) {
+        labelText.setText(label.text);
+        fontBox.setSelectedItem(label.font);
+        fontSize.setValue(label.size);
     }
 
     private void styleSpinnerButtons(java.awt.Container container) {
@@ -488,6 +559,7 @@ public final class ScreenshotMakerPanel extends JPanel {
 
     private void selectShot(int index) {
         activeShot=index;
+        nextPasteShot=index;
         cropStatus.setForeground(AssistantTheme.MUTED);
         cropStatus.setText(shots[index].image == null
                 ? "Screenshot " + (index + 1) + " selected. Press Ctrl+V or use the folder button."
@@ -652,7 +724,7 @@ public final class ScreenshotMakerPanel extends JPanel {
         composition.labels.add(new TextLabel(text,(String)fontBox.getSelectedItem(),(Integer)fontSize.getValue(),
                 OUTPUT_SIZE/2,OUTPUT_SIZE/2,gradientOverlay.isSelected(),outerGlow.isSelected(),
                 innerGlow.isSelected(),satin.isSelected(),stroke.isSelected(),
-                blendMode.getSelectedIndex(),textOpacity.getValue(),
+                blendMode.getSelectedIndex(),outerGlowSize.getValue(),strokeSize.getValue(),textOpacity.getValue(),
                 gradientTopColor.getBackground(),gradientBottomColor.getBackground(),
                 outerGlowColor.getBackground(),innerGlowColor.getBackground(),
                 satinColor.getBackground(),strokeColor.getBackground()));
@@ -783,6 +855,7 @@ public final class ScreenshotMakerPanel extends JPanel {
                     if (selectedLabel>=0) {
                         TextLabel label=labels.get(selectedLabel);
                         dragOffset=new Point(output.x-label.x,output.y-label.y);
+                        loadSelectedLabelControls(label);
                     } else {
                         dragCell=cellAt(output);
                     }
@@ -794,10 +867,17 @@ public final class ScreenshotMakerPanel extends JPanel {
                         repaint();
                         return;
                     }
-                    Point output=toOutput(e.getPoint());
+                    Point output=toOutputUnclamped(e.getPoint());
                     TextLabel label=labels.get(selectedLabel);
-                    label.x=Math.max(0,Math.min(OUTPUT_SIZE,output.x-dragOffset.x));
-                    label.y=Math.max(0,Math.min(OUTPUT_SIZE,output.y-dragOffset.y));
+                    FontMetrics metrics = labelMetrics(label);
+                    int width = metrics.stringWidth(label.text);
+                    int height = metrics.getHeight();
+                    int minimumX = -width / 2;
+                    int maximumX = OUTPUT_SIZE - width / 2;
+                    int minimumY = metrics.getAscent() - height / 2;
+                    int maximumY = OUTPUT_SIZE + height / 2 - metrics.getDescent();
+                    label.x=Math.max(minimumX,Math.min(maximumX,output.x-dragOffset.x));
+                    label.y=Math.max(minimumY,Math.min(maximumY,output.y-dragOffset.y));
                     invalidatePreview();
                 }
                 @Override public void mouseReleased(MouseEvent e) {
@@ -867,11 +947,24 @@ public final class ScreenshotMakerPanel extends JPanel {
             return -1;
         }
         private Point toOutput(Point point) {
+            Point output = toOutputUnclamped(point);
+            return new Point(Math.max(0,Math.min(OUTPUT_SIZE-1,output.x)),
+                    Math.max(0,Math.min(OUTPUT_SIZE-1,output.y)));
+        }
+        private Point toOutputUnclamped(Point point) {
             if (outputBounds.width<=0) return new Point(-1,-1);
             int x=(int)((point.x-outputBounds.x)*(double)OUTPUT_SIZE/outputBounds.width);
             int y=(int)((point.y-outputBounds.y)*(double)OUTPUT_SIZE/outputBounds.height);
-            return new Point(Math.max(0,Math.min(OUTPUT_SIZE-1,x)),
-                    Math.max(0,Math.min(OUTPUT_SIZE-1,y)));
+            return new Point(x,y);
+        }
+        private FontMetrics labelMetrics(TextLabel label) {
+            BufferedImage measure = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D graphics = measure.createGraphics();
+            try {
+                return graphics.getFontMetrics(new Font(label.font, Font.PLAIN, label.size));
+            } finally {
+                graphics.dispose();
+            }
         }
         BufferedImage renderOutput(int targetSize,boolean selection) {
             BufferedImage image=new BufferedImage(targetSize,targetSize,BufferedImage.TYPE_INT_ARGB);
@@ -903,11 +996,6 @@ public final class ScreenshotMakerPanel extends JPanel {
 
             if (selection) {
                 g=image.createGraphics();
-                if (!centerDividers.isSelected()) {
-                    g.setColor(new Color(255,255,255,120));
-                    g.drawLine(targetCell,0,targetCell,targetSize);
-                    g.drawLine(0,targetCell,targetSize,targetCell);
-                }
                 if (selectedCell>=0) {
                     int x=(selectedCell%2)*targetCell;
                     int y=(selectedCell/2)*targetCell;
@@ -965,9 +1053,10 @@ public final class ScreenshotMakerPanel extends JPanel {
             Shape shape=glyphVectorOutline(glyphs,x,y);
             g.setComposite(AlphaComposite.SrcOver.derive(label.opacity/100f));
 
-            if (label.outerGlow) {
+            if (label.outerGlow && label.outerGlowSize > 0) {
                 g.setColor(withAlpha(label.outerGlowColor,115));
-                g.setStroke(new BasicStroke(Math.max(1f,13f*(float)scale),BasicStroke.CAP_ROUND,BasicStroke.JOIN_ROUND));
+                float glowWidth = 26f * label.outerGlowSize / 100f;
+                g.setStroke(new BasicStroke(Math.max(1f,glowWidth*(float)scale),BasicStroke.CAP_ROUND,BasicStroke.JOIN_ROUND));
                 g.draw(shape);
             }
             if (label.satin) {
@@ -976,9 +1065,10 @@ public final class ScreenshotMakerPanel extends JPanel {
                 g.fill(shape);
                 g.translate(-4*scale,-5*scale);
             }
-            if (label.stroke) {
+            if (label.stroke && label.strokeSize > 0) {
                 g.setColor(withAlpha(label.strokeColor,220));
-                g.setStroke(new BasicStroke(Math.max(1f,5f*(float)scale),BasicStroke.CAP_ROUND,BasicStroke.JOIN_ROUND));
+                float strokeWidth = 10f * label.strokeSize / 100f;
+                g.setStroke(new BasicStroke(Math.max(1f,strokeWidth*(float)scale),BasicStroke.CAP_ROUND,BasicStroke.JOIN_ROUND));
                 g.draw(shape);
             }
             FontMetrics fm=g.getFontMetrics();
@@ -1059,19 +1149,22 @@ public final class ScreenshotMakerPanel extends JPanel {
         Rectangle crop;
     }
     private static final class TextLabel {
-        final String text,font;
-        final int size;
+        String text;
+        String font;
+        int size;
         boolean gradient,outerGlow,innerGlow,satin,stroke;
-        int blendMode,opacity;
+        int blendMode,outerGlowSize,strokeSize,opacity;
         Color gradientTop,gradientBottom,outerGlowColor,innerGlowColor,satinColor,strokeColor;
         int x,y;
         TextLabel(String text,String font,int size,int x,int y,boolean gradient,
                   boolean outerGlow,boolean innerGlow,boolean satin,boolean stroke,
-                  int blendMode,int opacity,Color gradientTop,Color gradientBottom,
+                  int blendMode,int outerGlowSize,int strokeSize,int opacity,
+                  Color gradientTop,Color gradientBottom,
                   Color outerGlowColor,Color innerGlowColor,Color satinColor,Color strokeColor) {
             this.text=text; this.font=font; this.size=size; this.x=x; this.y=y;
             this.gradient=gradient; this.outerGlow=outerGlow; this.innerGlow=innerGlow;
-            this.satin=satin; this.stroke=stroke; this.blendMode=blendMode; this.opacity=opacity;
+            this.satin=satin; this.stroke=stroke; this.blendMode=blendMode;
+            this.outerGlowSize=outerGlowSize; this.strokeSize=strokeSize; this.opacity=opacity;
             this.gradientTop=gradientTop; this.gradientBottom=gradientBottom;
             this.outerGlowColor=outerGlowColor; this.innerGlowColor=innerGlowColor;
             this.satinColor=satinColor; this.strokeColor=strokeColor;

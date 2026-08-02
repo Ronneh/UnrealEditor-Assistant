@@ -83,7 +83,7 @@ public final class UnrealEditor2Assistant {
         registerApp("prefabs", "\u25c7", "Prefab", "Explorer", new PrefabExplorerPanel());
         registerApp("double", "\u21c9", "Double", "Map", new MapDoublerPanel());
         registerApp("resizer", "\u2922", "Resize", "Image", new ImageResizerPanel());
-        registerApp("screenshots", "\u25a3", "Map", "Screenshot", new ScreenshotMakerPanel());
+        registerApp("screenshots", "\u25a3", "Level", "Screenshot", new ScreenshotMakerPanel());
         registerApp("seamless", "\u223f", "Seamless", "Texture", new SeamlessTexturePanel());
         registerApp("scripting", "\u2328", "UScript", "Guide", new ScriptingPanel());
         registerApp("editor-help", "?", "Editor", "Guide", new EditorHelpPanel());
@@ -241,18 +241,18 @@ public final class UnrealEditor2Assistant {
                 "Find and fix off-grid brush vertices safely."));
         features.add(featureInfo("Prefab Explorer",
                 "Organize and preview prefabs instantly."));
-        features.add(featureInfo("Double",
+        features.add(featureInfo("Double map",
                 "Prepare duplicated map content for the opposite team."));
-        features.add(featureInfo("Screenshot Maker",
-                "Combine, label and export four map screenshots."));
+        features.add(featureInfo("Level Screenshot Maker",
+                "Combine 4 map screenshots into one, add map name and export."));
         features.add(featureInfo("Image Resizer",
-                "Resize images to Unreal-friendly texture dimensions."));
+                "Resize images for import into Unreal Editor."));
         features.add(featureInfo("Seamless Texture",
-                "Turn an image crop into a seamless square texture."));
+                "Turn an image crop into a seamless texture."));
         features.add(featureInfo("UScript Guide",
-                "Write, check and compile UnrealScript with templates."));
+                "Learn, write, check and compile UnrealScript Code."));
         features.add(featureInfo("Editor Guide",
-                "Browse and search the complete local Unreal Editor reference."));
+                "Browse and search the complete Unreal Editor reference guide."));
 
         // Four equal rows: the viewport fits exactly three rows and two gaps (295 px).
         // At the bottom the scroll offset is therefore exactly one row plus one gap.

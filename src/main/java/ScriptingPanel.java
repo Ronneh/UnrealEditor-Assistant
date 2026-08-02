@@ -202,6 +202,7 @@ public final class ScriptingPanel extends JPanel {
                 event -> actionSplit.setDividerLocation(upperWorkspace.getDividerLocation()));
         actionSplit.addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY,
                 event -> upperWorkspace.setDividerLocation(actionSplit.getDividerLocation()));
+        SplitPaneState.install(upperWorkspace, ScriptingPanel.class, "browser-source");
         upperSection.add(actionSplit, BorderLayout.SOUTH);
         JSplitPane workspace = new JSplitPane(JSplitPane.VERTICAL_SPLIT,
                 upperSection, assistantTabs);
@@ -209,6 +210,7 @@ public final class ScriptingPanel extends JPanel {
         workspace.setDividerLocation(353);
         AssistantTheme.styleSplitPane(workspace);
         workspace.setDividerSize(10);
+        SplitPaneState.install(workspace, ScriptingPanel.class, "workspace-guide");
         if (workspace.getUI() instanceof BasicSplitPaneUI ui) {
             ui.getDivider().setBackground(java.awt.Color.BLACK);
             ui.getDivider().setBorder(BorderFactory.createMatteBorder(

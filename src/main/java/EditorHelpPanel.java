@@ -223,6 +223,7 @@ public final class EditorHelpPanel extends JPanel {
         split.setResizeWeight(0.29);
         split.setDividerLocation(350);
         AssistantTheme.styleSplitPane(split);
+        SplitPaneState.install(split, EditorHelpPanel.class, "browser-viewer");
         add(split, BorderLayout.CENTER);
         showMessage("Editor Help is loading", "The external English content pack is being validated.");
     }

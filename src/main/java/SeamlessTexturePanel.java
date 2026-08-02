@@ -92,6 +92,7 @@ public final class SeamlessTexturePanel extends JPanel {
                 titledCanvas("Source", inputCanvas), titledCanvas("Seamless result", outputCanvas));
         split.setResizeWeight(0.5);
         AssistantTheme.styleSplitPane(split);
+        SplitPaneState.install(split, SeamlessTexturePanel.class, "source-result");
         return split;
     }
 

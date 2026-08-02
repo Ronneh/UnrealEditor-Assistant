@@ -149,6 +149,7 @@ public final class NotesPanel extends JPanel {
         all.setResizeWeight(0.42);
         AssistantTheme.styleSplitPane(all);
         all.setDividerLocation(dividerLocation);
+        SplitPaneState.install(all, NotesPanel.class, "notes-editor");
         return all;
     }
 
