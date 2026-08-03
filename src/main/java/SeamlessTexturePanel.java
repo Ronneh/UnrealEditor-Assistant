@@ -61,18 +61,19 @@ public final class SeamlessTexturePanel extends JPanel {
         sourceActions.setOpaque(false);
         sourceActions.add(button("Paste", event -> pasteImage()));
         sourceActions.add(button("Import image", event -> loadImage()));
-        sourceActions.add(new JLabel("Output size:"));
         outputSize.setSelectedItem(512);
         outputSize.setPreferredSize(new Dimension(90, 26));
         outputSize.addActionListener(event -> {
             if (source != null) generate();
         });
-        sourceActions.add(outputSize);
-        sourceActions.add(new JLabel("px"));
+        sourceActions.add(button("90°", event -> rotateSource()));
+        sourceActions.add(button("Mirror", event -> mirrorSource()));
         sourceActions.add(button("Generate", event -> generate()));
         controls.add(sourceActions, BorderLayout.WEST);
         JPanel resultActions = new JPanel(new EdgeAlignedFlowLayout(java.awt.FlowLayout.RIGHT, 7, 0));
         resultActions.setOpaque(false);
+        resultActions.add(new JLabel("Output size:"));
+        resultActions.add(outputSize);
         resultActions.add(button("Export", event -> saveResult()));
         resultActions.add(button("Copy result", event -> copyResult()));
         controls.add(resultActions, BorderLayout.EAST);
@@ -150,6 +151,28 @@ public final class SeamlessTexturePanel extends JPanel {
         inputCanvas.repaint();
         status.setForeground(AssistantTheme.MUTED);
         status.setText("Loaded " + source.getWidth() + "×" + source.getHeight() + " from " + origin + ".");
+        generate();
+    }
+
+    private void rotateSource() {
+        if (source == null) {
+            showInputError("Load or paste an image first.");
+            return;
+        }
+        source = ImageToolSupport.rotateClockwise(source);
+        inputCanvas.image = source;
+        inputCanvas.repaint();
+        generate();
+    }
+
+    private void mirrorSource() {
+        if (source == null) {
+            showInputError("Load or paste an image first.");
+            return;
+        }
+        source = ImageToolSupport.mirrorHorizontal(source);
+        inputCanvas.image = source;
+        inputCanvas.repaint();
         generate();
     }
 
