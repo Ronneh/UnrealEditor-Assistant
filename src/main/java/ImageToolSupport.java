@@ -32,4 +32,26 @@ public final class ImageToolSupport {
         g.dispose();
         return result;
     }
+
+    public static BufferedImage rotateClockwise(BufferedImage source) {
+        BufferedImage result = new BufferedImage(
+                source.getHeight(), source.getWidth(), BufferedImage.TYPE_INT_ARGB);
+        for (int y = 0; y < source.getHeight(); y++) {
+            for (int x = 0; x < source.getWidth(); x++) {
+                result.setRGB(source.getHeight() - 1 - y, x, source.getRGB(x, y));
+            }
+        }
+        return result;
+    }
+
+    public static BufferedImage mirrorHorizontal(BufferedImage source) {
+        BufferedImage result = new BufferedImage(
+                source.getWidth(), source.getHeight(), BufferedImage.TYPE_INT_ARGB);
+        for (int y = 0; y < source.getHeight(); y++) {
+            for (int x = 0; x < source.getWidth(); x++) {
+                result.setRGB(source.getWidth() - 1 - x, y, source.getRGB(x, y));
+            }
+        }
+        return result;
+    }
 }

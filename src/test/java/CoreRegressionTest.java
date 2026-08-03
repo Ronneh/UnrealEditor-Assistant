@@ -170,6 +170,36 @@ class CoreRegressionTest {
     }
 
     @Test
+    void rotatesImagesNinetyDegreesClockwise() {
+        BufferedImage source = new BufferedImage(2, 3, BufferedImage.TYPE_INT_ARGB);
+        source.setRGB(0, 0, Color.RED.getRGB());
+        source.setRGB(1, 0, Color.GREEN.getRGB());
+        source.setRGB(0, 2, Color.BLUE.getRGB());
+
+        BufferedImage rotated = ImageToolSupport.rotateClockwise(source);
+
+        assertEquals(3, rotated.getWidth());
+        assertEquals(2, rotated.getHeight());
+        assertEquals(Color.RED.getRGB(), rotated.getRGB(2, 0));
+        assertEquals(Color.GREEN.getRGB(), rotated.getRGB(2, 1));
+        assertEquals(Color.BLUE.getRGB(), rotated.getRGB(0, 0));
+    }
+
+    @Test
+    void mirrorsImagesHorizontally() {
+        BufferedImage source = new BufferedImage(3, 1, BufferedImage.TYPE_INT_ARGB);
+        source.setRGB(0, 0, Color.RED.getRGB());
+        source.setRGB(1, 0, Color.GREEN.getRGB());
+        source.setRGB(2, 0, Color.BLUE.getRGB());
+
+        BufferedImage mirrored = ImageToolSupport.mirrorHorizontal(source);
+
+        assertEquals(Color.BLUE.getRGB(), mirrored.getRGB(0, 0));
+        assertEquals(Color.GREEN.getRGB(), mirrored.getRGB(1, 0));
+        assertEquals(Color.RED.getRGB(), mirrored.getRGB(2, 0));
+    }
+
+    @Test
     void doubleMapChangesOnlyEventAndTagValues() {
         String input = """
                 Begin Actor Class=Mover Name=RedMover

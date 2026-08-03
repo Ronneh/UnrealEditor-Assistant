@@ -21,6 +21,7 @@ import java.awt.Toolkit;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseWheelEvent;
 import java.awt.image.BufferedImage;
 import java.awt.font.GlyphVector;
 import java.io.File;
@@ -664,7 +665,7 @@ public final class ScreenshotMakerPanel extends JPanel {
                 + "</b><br>" + resolution + "</html>");
         cropStatus.setForeground(AssistantTheme.MUTED);
         cropStatus.setText("Screenshot " + (index + 1) + " added from " + source
-                + ". Drag the square to choose the crop.");
+                + ". Move or resize the crop frame.");
         updateCropSelection();
     }
 
@@ -759,22 +760,43 @@ public final class ScreenshotMakerPanel extends JPanel {
     }
 
     private final class CropCanvas extends JPanel {
+        private static final int NONE=-1,MOVE=0,LEFT=1,RIGHT=2,TOP=4,BOTTOM=8,HANDLE=8;
         private Rectangle displayedImage=new Rectangle();
         private Rectangle displayedCrop=new Rectangle();
         private Point dragOffset;
+        private Point dragStartPoint;
+        private Rectangle dragStartCrop;
+        private int dragMode=NONE;
         CropCanvas() {
             setBackground(AssistantTheme.CODE_BACKGROUND);
             setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
             MouseAdapter mouse=new MouseAdapter() {
                 @Override public void mousePressed(MouseEvent e) {
-                    if (shots[activeShot].image!=null && displayedCrop.contains(e.getPoint()))
+                    if (shots[activeShot].image==null) return;
+                    dragMode=hitTest(e.getPoint());
+                    if (dragMode==MOVE)
                         dragOffset=new Point(e.getX()-displayedCrop.x,e.getY()-displayedCrop.y);
+                    else if (dragMode!=NONE) {
+                        dragStartPoint=e.getPoint();
+                        dragStartCrop=new Rectangle(displayedCrop);
+                    }
                 }
                 @Override public void mouseDragged(MouseEvent e) {
-                    if (dragOffset==null) return;
+                    if (dragMode==NONE) return;
                     Shot shot=shots[activeShot];
                     double sx=(double)shot.image.getWidth()/displayedImage.width;
                     double sy=(double)shot.image.getHeight()/displayedImage.height;
+                    if (dragMode!=MOVE) {
+                        Rectangle resized=resizedDisplayCrop(e.getPoint());
+                        shot.crop.setBounds(
+                                (int)Math.round((resized.x-displayedImage.x)*sx),
+                                (int)Math.round((resized.y-displayedImage.y)*sy),
+                                Math.max(1,(int)Math.round(resized.width*sx)),
+                                Math.max(1,(int)Math.round(resized.height*sy)));
+                        clampCrop(shot);
+                        repaint();
+                        return;
+                    }
                     int displayX=Math.max(displayedImage.x,Math.min(e.getX()-dragOffset.x,
                             displayedImage.x+displayedImage.width-displayedCrop.width));
                     int displayY=Math.max(displayedImage.y,Math.min(e.getY()-dragOffset.y,
@@ -785,10 +807,74 @@ public final class ScreenshotMakerPanel extends JPanel {
                     shot.crop.y=Math.min(shot.image.getHeight()-shot.crop.height,Math.max(0,shot.crop.y));
                     repaint();
                 }
-                @Override public void mouseReleased(MouseEvent e) { dragOffset=null; }
+                @Override public void mouseReleased(MouseEvent e) {
+                    dragOffset=null;
+                    dragStartPoint=null;
+                    dragStartCrop=null;
+                    dragMode=NONE;
+                }
+                @Override public void mouseWheelMoved(MouseWheelEvent e) {
+                    Shot shot=shots[activeShot];
+                    if (shot.image==null) return;
+                    double factor=1.0+e.getPreciseWheelRotation()*.05;
+                    int width=Math.max(1,(int)Math.round(shot.crop.width*factor));
+                    int height=Math.max(1,(int)Math.round(shot.crop.height*factor));
+                    factor=Math.max(0.1,Math.min(factor,Math.min(
+                            shot.image.getWidth()/(double)shot.crop.width,
+                            shot.image.getHeight()/(double)shot.crop.height)));
+                    width=Math.max(1,(int)Math.round(shot.crop.width*factor));
+                    height=Math.max(1,(int)Math.round(shot.crop.height*factor));
+                    int centerX=shot.crop.x+shot.crop.width/2;
+                    int centerY=shot.crop.y+shot.crop.height/2;
+                    shot.crop.setBounds(centerX-width/2,centerY-height/2,width,height);
+                    clampCrop(shot);
+                    repaint();
+                }
             };
             addMouseListener(mouse);
             addMouseMotionListener(mouse);
+            addMouseWheelListener(mouse);
+        }
+        private int hitTest(Point point) {
+            Rectangle area=new Rectangle(displayedCrop);
+            area.grow(HANDLE,HANDLE);
+            if (!area.contains(point)) return NONE;
+            int mode=0;
+            if (Math.abs(point.x-displayedCrop.x)<=HANDLE) mode|=LEFT;
+            if (Math.abs(point.x-(displayedCrop.x+displayedCrop.width))<=HANDLE) mode|=RIGHT;
+            if (Math.abs(point.y-displayedCrop.y)<=HANDLE) mode|=TOP;
+            if (Math.abs(point.y-(displayedCrop.y+displayedCrop.height))<=HANDLE) mode|=BOTTOM;
+            return mode==0 && displayedCrop.contains(point)?MOVE:mode;
+        }
+        private Rectangle resizedDisplayCrop(Point point) {
+            if (dragStartCrop==null||dragStartPoint==null) return new Rectangle(displayedCrop);
+            int left=dragStartCrop.x,top=dragStartCrop.y;
+            int right=left+dragStartCrop.width,bottom=top+dragStartCrop.height;
+            boolean horizontal=(dragMode&(LEFT|RIGHT))!=0;
+            boolean vertical=(dragMode&(TOP|BOTTOM))!=0;
+            int deltaX=point.x-dragStartPoint.x,deltaY=point.y-dragStartPoint.y;
+            int width=horizontal?Math.max(12,dragStartCrop.width+((dragMode&LEFT)!=0?-deltaX:deltaX)):dragStartCrop.width;
+            int height=vertical?Math.max(12,dragStartCrop.height+((dragMode&TOP)!=0?-deltaY:deltaY)):dragStartCrop.height;
+            if (horizontal&&vertical) {
+                double widthFactor=width/(double)dragStartCrop.width;
+                double heightFactor=height/(double)dragStartCrop.height;
+                double factor=(widthFactor+heightFactor)/2.0;
+                width=Math.max(12,(int)Math.round(dragStartCrop.width*factor));
+                height=Math.max(12,(int)Math.round(dragStartCrop.height*factor));
+            }
+            width=Math.min(displayedImage.width,width);
+            height=Math.min(displayedImage.height,height);
+            int x=(dragMode&LEFT)!=0?right-width:left;
+            int y=(dragMode&TOP)!=0?bottom-height:top;
+            x=Math.max(displayedImage.x,Math.min(displayedImage.x+displayedImage.width-width,x));
+            y=Math.max(displayedImage.y,Math.min(displayedImage.y+displayedImage.height-height,y));
+            return new Rectangle(x,y,width,height);
+        }
+        private void clampCrop(Shot shot) {
+            shot.crop.width=Math.min(shot.image.getWidth(),Math.max(1,shot.crop.width));
+            shot.crop.height=Math.min(shot.image.getHeight(),Math.max(1,shot.crop.height));
+            shot.crop.x=Math.min(shot.image.getWidth()-shot.crop.width,Math.max(0,shot.crop.x));
+            shot.crop.y=Math.min(shot.image.getHeight()-shot.crop.height,Math.max(0,shot.crop.y));
         }
         @Override protected void paintComponent(Graphics graphics) {
             super.paintComponent(graphics);
@@ -820,6 +906,15 @@ public final class ScreenshotMakerPanel extends JPanel {
             g.setColor(Color.WHITE);
             g.setStroke(new BasicStroke(2f));
             g.draw(displayedCrop);
+            int half=3,centerX=displayedCrop.x+displayedCrop.width/2;
+            int centerY=displayedCrop.y+displayedCrop.height/2;
+            int right=displayedCrop.x+displayedCrop.width,bottom=displayedCrop.y+displayedCrop.height;
+            for (int x:new int[]{displayedCrop.x,centerX,right}) {
+                for (int y:new int[]{displayedCrop.y,centerY,bottom}) {
+                    if (x==centerX&&y==centerY) continue;
+                    g.fillRect(x-half,y-half,half*2+1,half*2+1);
+                }
+            }
             g.dispose();
         }
     }
