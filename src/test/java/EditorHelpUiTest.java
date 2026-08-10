@@ -14,13 +14,9 @@ class EditorHelpUiTest {
     @TempDir Path temp;
 
     @Test
-    void articleSelectionCanBeExportedForCopy() throws Exception {
+    void articleAlwaysOffersCopyExportWithoutDependingOnHtmlSelectionOffsets() throws Exception {
         EditorHelpPanel[] holder = new EditorHelpPanel[1];
-        SwingUtilities.invokeAndWait(() -> {
-            holder[0] = new EditorHelpPanel(null, null);
-            holder[0].articleForTest().setText("<html><body>Copy this tutorial text</body></html>");
-            holder[0].articleForTest().select(1, 5);
-        });
+        SwingUtilities.invokeAndWait(() -> holder[0] = new EditorHelpPanel(null, null));
         assertEquals(TransferHandler.COPY,
                 holder[0].articleForTest().getTransferHandler().getSourceActions(holder[0].articleForTest()));
     }

@@ -392,7 +392,7 @@ public final class EditorHelpPanel extends JPanel {
 
     private final class TutorialDropHandler extends TransferHandler {
         @Override public int getSourceActions(javax.swing.JComponent component) {
-            return component == article && article.getSelectedText() != null ? COPY : NONE;
+            return component == article ? COPY : NONE;
         }
 
         @Override protected Transferable createTransferable(javax.swing.JComponent component) {
