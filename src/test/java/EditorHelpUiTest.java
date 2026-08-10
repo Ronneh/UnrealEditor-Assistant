@@ -6,11 +6,24 @@ import java.nio.file.Path;
 import java.awt.image.BufferedImage;
 import java.util.List;
 import javax.swing.SwingUtilities;
+import javax.swing.TransferHandler;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class EditorHelpUiTest {
     @TempDir Path temp;
+
+    @Test
+    void articleSelectionCanBeExportedForCopy() throws Exception {
+        EditorHelpPanel[] holder = new EditorHelpPanel[1];
+        SwingUtilities.invokeAndWait(() -> {
+            holder[0] = new EditorHelpPanel(null, null);
+            holder[0].articleForTest().setText("<html><body>Copy this tutorial text</body></html>");
+            holder[0].articleForTest().select(1, 5);
+        });
+        assertEquals(TransferHandler.COPY,
+                holder[0].articleForTest().getTransferHandler().getSourceActions(holder[0].articleForTest()));
+    }
 
     @Test
     void locatesPackRebuildsIndexAndCreatesPanelHeadlessly() throws Exception {

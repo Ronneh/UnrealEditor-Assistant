@@ -9,6 +9,13 @@ import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.Rectangle;
 import java.awt.Shape;
+import java.awt.Toolkit;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.StringSelection;
+import java.awt.datatransfer.Transferable;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
+import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
@@ -32,6 +39,11 @@ import javax.swing.JTabbedPane;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 import javax.swing.Timer;
+import javax.swing.TransferHandler;
+import javax.swing.JFileChooser;
+import javax.swing.KeyStroke;
+import javax.swing.JOptionPane;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.text.View;
 import javax.swing.text.ViewFactory;
 import javax.swing.text.html.HTML;
@@ -64,6 +76,7 @@ public final class EditorHelpPanel extends JPanel {
     private final JButton back = new JButton("Back");
     private final JButton forward = new JButton("Forward");
     private final JButton home = new JButton("Home");
+    private final JButton importTutorial = new JButton("Import Tutorial...");
     private final ArrayDeque<String> backHistory = new ArrayDeque<>();
     private final ArrayDeque<String> forwardHistory = new ArrayDeque<>();
     private final Timer searchTimer;
@@ -102,7 +115,25 @@ public final class EditorHelpPanel extends JPanel {
         });
         searchBar.add(title, BorderLayout.WEST);
         searchBar.add(searchField, BorderLayout.CENTER);
+        importTutorial.setToolTipText("Import an HTML or PDF tutorial into New Tutorials");
+        importTutorial.addActionListener(event -> chooseTutorial());
+        searchBar.add(importTutorial, BorderLayout.EAST);
         add(searchBar, BorderLayout.NORTH);
+
+        TransferHandler tutorialDrop = new TutorialDropHandler();
+        setTransferHandler(tutorialDrop);
+        article.setTransferHandler(tutorialDrop);
+        categoryTree.setTransferHandler(tutorialDrop);
+        resultList.setTransferHandler(tutorialDrop);
+        javax.swing.Action pasteImportAction = new javax.swing.AbstractAction() {
+            @Override public void actionPerformed(java.awt.event.ActionEvent event) { pasteTutorial(); }
+        };
+        getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_V, InputEvent.CTRL_DOWN_MASK), "import-tutorial-paste");
+        getActionMap().put("import-tutorial-paste", pasteImportAction);
+        bindTutorialPaste(article, pasteImportAction);
+        bindTutorialPaste(categoryTree, pasteImportAction);
+        bindTutorialPaste(resultList, pasteImportAction);
 
         categoryTree.setRootVisible(false);
         categoryTree.setShowsRootHandles(true);
@@ -145,10 +176,12 @@ public final class EditorHelpPanel extends JPanel {
         article.setContentType("text/html");
         article.setBackground(AssistantTheme.CODE_BACKGROUND);
         article.setForeground(AssistantTheme.TEXT);
+        article.setBorder(BorderFactory.createEmptyBorder(0, 28, 0, 28));
         StyleSheet isolatedStyles = new StyleSheet();
         isolatedStyles.addStyleSheet(htmlKit.getStyleSheet());
         isolatedStyles.addRule("html, body { background: #0c0f14; color: #e8edf4; }");
-        isolatedStyles.addRule("body { font-family: Verdana, sans-serif; font-size: 12px; margin: 22px; }");
+        isolatedStyles.addRule("body { font-family: Verdana, sans-serif; font-size: 12px; "
+                + "margin-top: 22px; margin-left: 0; margin-bottom: 22px; margin-right: 0; }");
         isolatedStyles.addRule("p, div, li, td, th, blockquote { font-family: Verdana, sans-serif; "
                 + "font-size: 12px; text-align: left; }");
         isolatedStyles.addRule("p { margin-top: 7px; margin-bottom: 9px; }");
@@ -184,6 +217,9 @@ public final class EditorHelpPanel extends JPanel {
                 + "border: 1px solid #3a4352; padding: 3px 5px; }");
         isolatedStyles.addRule("img { max-width: 100%; }");
         isolatedStyles.addRule(".help-image-only { text-align: center; }");
+        isolatedStyles.addRule("p.help-pdf-paragraph { font-size: 15px; line-height: 1.5; "
+                + "margin-top: 10px; margin-left: 0; margin-right: 0; margin-bottom: 12px; }");
+        isolatedStyles.addRule(".help-pdf-image { margin-top: 16px; margin-bottom: 18px; text-align: center; }");
         isolatedStyles.addRule("table.help-icon-entry { margin-top: 8px; margin-bottom: 10px; }");
         isolatedStyles.addRule("td.help-icon { padding-right: 7px; }");
         isolatedStyles.addRule("td.help-icon-heading { font-weight: bold; vertical-align: middle; }");
@@ -197,6 +233,7 @@ public final class EditorHelpPanel extends JPanel {
                 + "border: 1px solid #3a4352; padding: 10px; }");
         htmlKit.setStyleSheet(isolatedStyles);
         article.setEditorKit(htmlKit);
+        articleScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 
         JPanel viewer = new JPanel(new BorderLayout(0, 6));
         viewer.setBackground(AssistantTheme.PANEL);
@@ -245,6 +282,136 @@ public final class EditorHelpPanel extends JPanel {
                 }
             }
         }.execute();
+    }
+
+    private void chooseTutorial() {
+        File home = new File(System.getProperty("user.home", "."));
+        JFileChooser chooser = new DarkFileChooser(FileSaveSupport.preferredDirectory(null, home));
+        chooser.setDialogTitle("Import Tutorial");
+        chooser.setFileFilter(new FileNameExtensionFilter(
+                "Tutorials (*.html, *.htm, *.pdf)", "html", "htm", "pdf"));
+        chooser.setAcceptAllFileFilterUsed(false);
+        if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+            importTutorial(chooser.getSelectedFile().toPath());
+        }
+    }
+
+    private void pasteTutorial() {
+        try {
+            Transferable clipboard = Toolkit.getDefaultToolkit().getSystemClipboard().getContents(null);
+            Path file = tutorialPath(clipboard);
+            if (file == null) throw new IllegalArgumentException(
+                    "Copy one HTML or PDF file in Explorer, then press Ctrl+V.");
+            importTutorial(file);
+        } catch (Exception exception) {
+            DarkDialogs.message(this, exception.getMessage(), "Cannot paste tutorial", JOptionPane.WARNING_MESSAGE);
+        }
+    }
+
+    private void importTutorial(Path file) {
+        if (pack == null) {
+            DarkDialogs.message(this, "The Editor Guide content pack is not available.",
+                    "Cannot import tutorial", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        importTutorial.setEnabled(false);
+        status.setText("Importing tutorial...");
+        new SwingWorker<EditorHelpTutorialImporter.ImportResult, Void>() {
+            @Override protected EditorHelpTutorialImporter.ImportResult doInBackground() throws Exception {
+                return new EditorHelpTutorialImporter().importTutorial(file, pack.root());
+            }
+            @Override protected void done() {
+                try {
+                    EditorHelpTutorialImporter.ImportResult result = get();
+                    reloadAfterImport(result);
+                } catch (Exception exception) {
+                    importTutorial.setEnabled(true);
+                    Throwable cause = exception.getCause() == null ? exception : exception.getCause();
+                    status.setText("Import failed");
+                    DarkDialogs.message(EditorHelpPanel.this, cause.getMessage(),
+                            "Tutorial import failed", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        }.execute();
+    }
+
+    private void reloadAfterImport(EditorHelpTutorialImporter.ImportResult result) {
+        status.setText("Updating tutorial search...");
+        new SwingWorker<EditorHelpEnvironment.Session, Void>() {
+            @Override protected EditorHelpEnvironment.Session doInBackground() throws Exception {
+                return new EditorHelpEnvironment().open();
+            }
+            @Override protected void done() {
+                importTutorial.setEnabled(true);
+                try {
+                    EditorHelpEnvironment.Session session = get();
+                    EditorHelpSearch oldSearch = search;
+                    installContent(session.pack(), session.search());
+                    if (oldSearch != null && oldSearch != search) oldSearch.close();
+                    openDocument(result.id(), false);
+                    status.setText((result.updated() ? "Updated " : "Imported ") + result.title()
+                            + " (" + result.copiedImages() + " images)");
+                } catch (Exception exception) {
+                    Throwable cause = exception.getCause() == null ? exception : exception.getCause();
+                    status.setText("Tutorial imported; reload failed");
+                    DarkDialogs.message(EditorHelpPanel.this,
+                            "The tutorial was imported, but the guide could not be reloaded:\n" + cause.getMessage(),
+                            "Reload failed", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        }.execute();
+    }
+
+    private static Path tutorialPath(Transferable value) throws Exception {
+        if (value == null) return null;
+        if (value.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) {
+            @SuppressWarnings("unchecked") List<File> files =
+                    (List<File>) value.getTransferData(DataFlavor.javaFileListFlavor);
+            return files.size() == 1 ? files.get(0).toPath() : null;
+        }
+        if (value.isDataFlavorSupported(DataFlavor.stringFlavor)) {
+            String text = ((String) value.getTransferData(DataFlavor.stringFlavor)).strip();
+            if (text.startsWith("file:")) return Path.of(java.net.URI.create(text));
+            if (!text.isBlank() && !text.contains("\n")) return Path.of(text.replaceAll("^\"|\"$", ""));
+        }
+        return null;
+    }
+
+    private static void bindTutorialPaste(javax.swing.JComponent component, javax.swing.Action action) {
+        component.getInputMap(WHEN_FOCUSED).put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_V, InputEvent.CTRL_DOWN_MASK), "import-tutorial-paste");
+        component.getActionMap().put("import-tutorial-paste", action);
+    }
+
+    private final class TutorialDropHandler extends TransferHandler {
+        @Override public int getSourceActions(javax.swing.JComponent component) {
+            return component == article && article.getSelectedText() != null ? COPY : NONE;
+        }
+
+        @Override protected Transferable createTransferable(javax.swing.JComponent component) {
+            if (component != article) return null;
+            String selected = article.getSelectedText();
+            return selected == null || selected.isEmpty() ? null : new StringSelection(selected);
+        }
+
+        @Override public boolean canImport(TransferSupport support) {
+            return support.isDataFlavorSupported(DataFlavor.javaFileListFlavor)
+                    || support.isDataFlavorSupported(DataFlavor.stringFlavor);
+        }
+
+        @Override public boolean importData(TransferSupport support) {
+            if (!canImport(support)) return false;
+            try {
+                Path file = tutorialPath(support.getTransferable());
+                if (file == null) throw new IllegalArgumentException("Drop exactly one HTML or PDF tutorial file.");
+                importTutorial(file);
+                return true;
+            } catch (Exception exception) {
+                DarkDialogs.message(EditorHelpPanel.this, exception.getMessage(),
+                        "Cannot import tutorial", JOptionPane.WARNING_MESSAGE);
+                return false;
+            }
+        }
     }
 
     void installContent(EditorHelpContentPack loadedPack, EditorHelpSearch loadedSearch) {
@@ -1397,6 +1564,10 @@ public final class EditorHelpPanel extends JPanel {
                         && cssClass.toString().contains("help-inline-icon")) {
                     return new VerticallyCenteredImageView(element);
                 }
+                if (name == HTML.Tag.IMG && cssClass != null
+                        && cssClass.toString().contains("help-pdf-import-image")) {
+                    return new PdfResponsiveImageView(element);
+                }
                 if (name == HTML.Tag.IMG) return new ResponsiveImageView(element);
                 return super.create(element);
             }
@@ -1432,11 +1603,16 @@ public final class EditorHelpPanel extends JPanel {
             super(element);
         }
 
+        protected int horizontalReserve() {
+            // Keeps large images below the article/table width so they cannot widen their parent view.
+            return 150;
+        }
+
         private float scale() {
             float naturalWidth = super.getPreferredSpan(View.X_AXIS);
             Component container = getContainer();
             if (naturalWidth <= 0 || container == null || container.getWidth() <= 0) return 1f;
-            int availableWidth = Math.max(1, container.getWidth() - 44);
+            int availableWidth = Math.max(1, container.getWidth() - horizontalReserve());
             return Math.min(1f, availableWidth / naturalWidth);
         }
 
@@ -1453,6 +1629,15 @@ public final class EditorHelpPanel extends JPanel {
             }
             Rectangle bounds = allocation.getBounds();
             graphics.drawImage(image, bounds.x, bounds.y, bounds.width, bounds.height, getContainer());
+        }
+    }
+
+    private static final class PdfResponsiveImageView extends ResponsiveImageView {
+        PdfResponsiveImageView(javax.swing.text.Element element) { super(element); }
+
+        @Override protected int horizontalReserve() {
+            // Body/table/paragraph margins, borders and the vertical scrollbar.
+            return 170;
         }
     }
 
@@ -1481,6 +1666,7 @@ public final class EditorHelpPanel extends JPanel {
     JTextField searchFieldForTest() { return searchField; }
     JTree categoryTreeForTest() { return categoryTree; }
     JTabbedPane browseTabsForTest() { return browseTabs; }
+    JEditorPane articleForTest() { return article; }
 
     private record TreeEntry(String title, String documentId) {
         @Override public String toString() { return title; }
