@@ -77,6 +77,7 @@ public final class EditorHelpPanel extends JPanel {
     private final JButton forward = new JButton("Forward");
     private final JButton home = new JButton("Home");
     private final JButton importTutorial = new JButton("Import Tutorial");
+    private final JPanel authoringToolbar = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 5, 0));
     private final ArrayDeque<String> backHistory = new ArrayDeque<>();
     private final ArrayDeque<String> forwardHistory = new ArrayDeque<>();
     private final Timer searchTimer;
@@ -84,6 +85,7 @@ public final class EditorHelpPanel extends JPanel {
     private EditorHelpContentPack pack;
     private EditorHelpSearch search;
     private String currentDocumentId;
+    private EditorHelpAuthoringExtension authoringExtension;
 
     public EditorHelpPanel() {
         this(null, null);
@@ -253,6 +255,8 @@ public final class EditorHelpPanel extends JPanel {
         buttons.add(home);
         buttons.add(back);
         buttons.add(forward);
+        authoringToolbar.setOpaque(false);
+        buttons.add(authoringToolbar);
         JPanel centeredButtons = new JPanel(new java.awt.GridBagLayout());
         centeredButtons.setOpaque(false);
         centeredButtons.add(buttons);
@@ -270,6 +274,7 @@ public final class EditorHelpPanel extends JPanel {
         AssistantTheme.styleSplitPane(split);
         SplitPaneState.install(split, EditorHelpPanel.class, "browser-viewer");
         add(split, BorderLayout.CENTER);
+        authoringExtension = EditorHelpAuthoring.install(new AuthoringHost());
         showMessage("Editor Help is loading", "The external English content pack is being validated.");
     }
 
@@ -479,8 +484,7 @@ public final class EditorHelpPanel extends JPanel {
         }
         try {
             Path page = document.resolveContent(pack.root());
-            String preparedHtml = prepareArticleHtml(Files.readString(
-                    page, java.nio.charset.StandardCharsets.UTF_8));
+            String preparedHtml = prepareArticleHtml(readArticleHtml(document, page));
             HTMLDocument htmlDocument = (HTMLDocument) htmlKit.createDefaultDocument();
             htmlDocument.setBase(page.toUri().toURL());
             htmlDocument.putProperty("IgnoreCharsetDirective", Boolean.TRUE);
@@ -491,10 +495,22 @@ public final class EditorHelpPanel extends JPanel {
             scrollArticleToTop();
             currentDocumentId = id;
             source.setText(correctHelpTitle(document.title()) + "  ·  " + document.source());
+            if (authoringExtension != null) authoringExtension.documentChanged(page);
             updateNavigationButtons();
         } catch (Exception e) {
             showMessage("Unable to open tutorial", escapeHtml(e.getMessage()));
         }
+    }
+
+    private static String readArticleHtml(
+            EditorHelpContentPack.HelpDocument document, Path originalPage) throws Exception {
+        String resource = "/tutorial-overrides/" + document.contentFile().replace('\\', '/');
+        try (java.io.InputStream override = EditorHelpPanel.class.getResourceAsStream(resource)) {
+            if (override != null) {
+                return new String(override.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            }
+        }
+        return Files.readString(originalPage, java.nio.charset.StandardCharsets.UTF_8);
     }
 
     private void navigateBack() {
@@ -531,6 +547,7 @@ public final class EditorHelpPanel extends JPanel {
                 + escapeHtml(heading) + "</h1><p>" + message + "</p></body></html>");
         scrollArticleToTop();
         source.setText(" ");
+        if (authoringExtension != null) authoringExtension.documentChanged(null);
     }
 
     private static String escapeHtml(String value) {
@@ -1674,6 +1691,66 @@ public final class EditorHelpPanel extends JPanel {
     JTree categoryTreeForTest() { return categoryTree; }
     JTabbedPane browseTabsForTest() { return browseTabs; }
     JEditorPane articleForTest() { return article; }
+
+    private final class AuthoringHost implements EditorHelpAuthoringExtension.Host {
+        @Override public Component parent() { return EditorHelpPanel.this; }
+        @Override public JEditorPane article() { return article; }
+        @Override public JPanel toolbar() { return authoringToolbar; }
+        @Override public Path currentArticlePath() {
+            if (pack == null || currentDocumentId == null) return null;
+            EditorHelpContentPack.HelpDocument document = documentsById.get(currentDocumentId);
+            if (document == null) return null;
+            try {
+                return document.resolveContent(pack.root());
+            } catch (Exception ignored) {
+                return null;
+            }
+        }
+        @Override public Path authoringSavePath() {
+            if (currentDocumentId == null) return null;
+            EditorHelpContentPack.HelpDocument document = documentsById.get(currentDocumentId);
+            if (document == null) return null;
+            Path repository = authoringRepository();
+            if (repository == null) return null;
+            if (!Files.isRegularFile(repository.resolve("pom.xml"))) return null;
+            Path root = repository.resolve("src/main/resources/tutorial-overrides").normalize();
+            Path destination = root.resolve(
+                    document.contentFile().replace('/', File.separatorChar)).normalize();
+            return destination.startsWith(root) ? destination : null;
+        }
+        private Path authoringRepository() {
+            try (java.io.InputStream input = EditorHelpPanel.class
+                    .getResourceAsStream("/tutorial-editor-repository.txt")) {
+                if (input != null) {
+                    String configured = new String(input.readAllBytes(),
+                            java.nio.charset.StandardCharsets.UTF_8).strip();
+                    if (!configured.isEmpty()) {
+                        configured = configured.replace("\\\\", "\\");
+                        return Path.of(configured).toAbsolutePath().normalize();
+                    }
+                }
+            } catch (Exception ignored) {
+                // The working-directory fallback below supports IDE launches.
+            }
+            Path working = Path.of("").toAbsolutePath().normalize();
+            return Files.isRegularFile(working.resolve("pom.xml")) ? working : null;
+        }
+        @Override public void reloadCurrentArticle() {
+            article.setEditorKit(htmlKit);
+            if (currentDocumentId != null) openDocument(currentDocumentId, false);
+        }
+        @Override public void setStatus(String text) { status.setText(text); }
+        @Override public void setNavigationEnabled(boolean enabled) {
+            searchField.setEnabled(enabled);
+            categoryTree.setEnabled(enabled);
+            resultList.setEnabled(enabled);
+            browseTabs.setEnabled(enabled);
+            importTutorial.setEnabled(enabled);
+            home.setEnabled(enabled);
+            back.setEnabled(enabled && !backHistory.isEmpty());
+            forward.setEnabled(enabled && !forwardHistory.isEmpty());
+        }
+    }
 
     private record TreeEntry(String title, String documentId) {
         @Override public String toString() { return title; }

@@ -14,6 +14,11 @@ class EditorHelpUiTest {
     @TempDir Path temp;
 
     @Test
+    void tutorialEditorProviderMatchesExplicitBuildProfile() {
+        assertEquals(Boolean.getBoolean("tutorial.editor.expected"), EditorHelpAuthoring.isAvailable());
+    }
+
+    @Test
     void articleAlwaysOffersCopyExportWithoutDependingOnHtmlSelectionOffsets() throws Exception {
         EditorHelpPanel[] holder = new EditorHelpPanel[1];
         SwingUtilities.invokeAndWait(() -> holder[0] = new EditorHelpPanel(null, null));
