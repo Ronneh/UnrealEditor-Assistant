@@ -163,9 +163,9 @@ public final class BrushOptimizer {
         JPanel actions = new JPanel(new EdgeAlignedFlowLayout(FlowLayout.LEFT, 6, 0));
         actions.setBackground(AssistantTheme.BACKGROUND);
         actions.setBorder(BorderFactory.createEmptyBorder(0, 1, 0, 0));
+        actions.add(button("Paste", this::pasteInput));
         actions.add(outlinedButton("Analyze", new Color(224, 132, 40), this::analyzeOnly));
         actions.add(outlinedButton("Optimize", new Color(45, 170, 85), this::optimizeAllBrushes));
-        actions.add(button("Paste", this::pasteInput));
         actions.add(button("Copy result", this::copyOutput));
         actions.add(button("Reset", this::reset));
         lowerSection.add(actions, BorderLayout.NORTH);
