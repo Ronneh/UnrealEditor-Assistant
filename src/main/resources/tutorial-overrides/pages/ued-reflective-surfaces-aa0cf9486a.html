@@ -1,0 +1,208 @@
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+    <meta name="GENERATOR" content="Microsoft FrontPage 4.0">
+    <meta name="ProgId" content="FrontPage.Editor.Document">
+    <title>Reflective Surfaces</title>
+    
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000" link="#008000" vlink="#008000" alink="#008000">
+    <div align="center" style="width: 652; height: 2566">
+      <table height="100%" cellspacing="0" cellpadding="0" width="100%" border="0">
+        <tr>
+          <td valign="top" width="650">
+            <p>
+              <font face="Arial" size="5" color="#006600">Reflective Surfaces</font>
+            </p>
+            <hr color="#006600">
+            
+
+            <p>
+              <font face="Arial" size="2">By: Tyler A. Perry AKA Maverick</font>
+            </p>
+            <p>
+              <font face="Arial" size="2"><a href="http://www.planetunreal.com/maverick/">Maverick's 
+              Map Design</a></font>
+            </p>
+            <p>
+              <font face="Arial" size="2">Email: <a href="mailto:maverick@planetunreal.com">maverick@planetunreal.com</a></font>
+            </p>
+            <p>
+              <font face="Arial" size="2">Date: December 18, 2000</font>
+            </p>
+            <p>
+              &#160;
+            </p>
+            <p>
+              <font face="Arial" size="3" color="#006600"><b>Forward:</b></font>
+            </p>
+            <p>
+              <font face="Arial" size="2">I decided to write a tutorial on how 
+              to create a mirror or a polished surface for your level.</font>
+            </p>
+            <p>
+              &#160;
+            </p>
+            <p>
+              <font face="Arial" size="3" color="#006600"><b>Abstract:</b></font>
+            </p>
+            <p>
+              <font face="Arial" size="2">This tutorial will go over how to 
+              create a reflective surface such as a mirror, polished marble, 
+              etc. This tutorial will also explain how and where and when to 
+              use them.</font>
+            </p>
+            <p>
+              &#160;
+            </p>
+            <p>
+              <font face="Arial" size="3" color="#006600"><b>Assumptions:</b></font>
+            </p>
+            <p>
+              <font face="Arial" size="2">I assume you know the basics of the 
+              editor, such as adding lights, subtracting and adding brushes, 
+              and everything else similar to that.</font>
+            </p>
+            <p>
+              &#160;
+            </p>
+            <p>
+              <font face="Arial" size="3" color="#006600"><b>Tutorial:</b></font>
+            </p>
+            <p>
+              <b><font face="Arial" size="3" color="#006600">Introduction:</font></b>
+            </p>
+            <p>
+              <font face="Arial" size="2">Reflective surfaces can add a lot of 
+              detail and realism to your levels, increasing its visual quality 
+              as well as its gameplay if it is added properly. Let&#8217;s get 
+              started.</font>
+            </p>
+            <p>
+              <b><font face="Arial" size="3" color="#006600">Creating a Mirror:</font></b>
+            </p>
+            <p>
+              <font face="Arial" size="2">Start by creating a room that is 
+              256x512x512 with the textures of your choice. (Preferably from 
+              the texture set SkyCity.utx, and the floor would look good as 
+              marble).</font>
+            </p>
+            <p>
+              <font face="Arial" size="2">Now, select one of the walls and 
+              press F5. (Pressing F5 brings up the surface properties). Select 
+              the tab Flags and check Unlit and Reflective, your surface 
+              properties should look like this:</font>
+            </p>
+            <p>
+              &#160;
+            </p>
+            <font size="2"><img height="297" alt="Surface Properties." src="../assets/UED/Untitled-1.jpg" width="355" border="0">
+            </font>
+
+            <p>
+              &#160;
+            </p>
+            <p>
+              <font face="Arial" size="2">Rebuild and press &#8216;P&#8217;. This should 
+              allow you to view the reflective surfaces. You can play test it 
+              as well. (If your reflective surface does not show up in 
+              UnrealEd, then go to your advanced properties and adjust your 
+              software rendering to allow it).</font>
+            </p>
+            <p>
+              <b><font face="Arial" size="3" color="#006600">Where to Place a 
+              Mirror:</font></b>
+            </p>
+            <p>
+              <font face="Arial" size="2">Mirrors are great eye-candy if used 
+              correctly and appropriately in the right areas. Never create a 
+              level with too many mirrors or with a giant mirror that reflects 
+              a high polygonal area of the map, doing this will kill 
+              framerates like you couldn&#8217;t imagine. Instead, add mirrors in 
+              simple rooms, with maybe a little bit of complex polygonal areas 
+              that won&#8217;t decrease framerates too much.</font>
+            </p>
+            <p>
+              <font face="Arial" size="2">Mirrors generally look good where 
+              you would find a mirror, in a bathroom, the mirrors on a car, in 
+              homes, in certain industrial areas, and so on.</font>
+            </p>
+            <p>
+              <b><font face="Arial" size="3" color="#006600">Creating Partly 
+              Reflective Surfaces:</font></b>
+            </p>
+            <p>
+              <font face="Arial" size="2">Start out by creating a room with 
+              the same dimensions of the last room you had, same texturing, 
+              same lighting, but no mirror.</font>
+            </p>
+            <p>
+              <font face="Arial" size="2">Select the floor of the room and 
+              check Unlit, Reflective, and Translucent. Your Surface 
+              Properties should look like this:</font>
+            </p>
+            <p>
+              &#160;
+            </p>
+            <font size="2"><img height="297" alt="Surface Properties." src="../assets/UED/Untitled-2.jpg" width="355" border="0">
+            </font>
+
+            <p>
+              &#160;
+            </p>
+            <p>
+              <font face="Arial" size="2">Rebuild and test your surfaces.</font>
+            </p>
+            <p>
+              <font face="Arial" size="2">There are two different options you 
+              can have for partly reflective surfaces, Translucent and 
+              Modulated.</font>
+            </p>
+            <p>
+              <font face="Arial" size="2"><u>Translucent</u>: Surfaces are 
+              more reflective in dark areas and less reflective on lighter 
+              areas. In the editor, you can slightly see through the darker 
+              areas and see the blue graph below.</font>
+            </p>
+            <p>
+              <font face="Arial" size="2"><u>Modulated</u>: Surfaces are more 
+              reflective in lighter areas, and less in darker. In the editor, 
+              the lighter areas are invisible until you press &#8216;P&#8217;, so don&#8217;t 
+              worry if you see some of the blue graph.</font>
+            </p>
+            <p>
+              <b><font face="Arial" size="3" color="#006600">Where to Place 
+              Partly Reflective Surfaces:</font></b>
+            </p>
+            <p>
+              <font face="Arial" size="2">Partly reflective surfaces can add a 
+              large amount of detail and increase visual quality much more 
+              than mirrors. Mirrors are used less, and most polished things 
+              are reflective. Just don&#8217;t go overboard with reflectivity.</font>
+            </p>
+            <p>
+              <font face="Arial" size="2">Partly reflective surfaces generally 
+              go on Marble, polished tile, shiny metal, and if you take a look 
+              out your window, you will see a lot of reflective surfaces. 
+              Dirty mirrors works too.</font>
+            </p>
+            <p>
+              &#160;
+            </p>
+          </td>
+        </tr>
+      </table>
+      <table cellspacing="0" cellpadding="0" width="300" border="0">
+        <tr>
+          <td>
+            <div align="center">
+              <font size="2">This design is copyright&#169; 2000-2001 and 2002 to 
+              Tyler A. Perry AKA Maverick, please do not copy it. If you have 
+              questions, please email him at <a href="mailto:maverick@planetunreal.com">maverick@planetunreal.com</a></font>
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>

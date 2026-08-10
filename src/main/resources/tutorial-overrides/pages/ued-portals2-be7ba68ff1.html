@@ -1,0 +1,156 @@
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+    <title>Portals 2</title>
+    
+  </head>
+  <body>
+    <h1>
+      <font size="5" color="#006600">Portals 2</font>
+    </h1>
+    <hr color="#006600">
+    
+
+    <ul>
+      <p align="left">
+        <font size="2">By: Isolation</font>
+      </p>
+    </ul>
+    <h4>
+      <font color="#006600" size="5"><b>The Basics</b></font>
+    </h4>
+    <p>
+      <font size="2">Lets begin with a simple room, I am going to use the 
+      exact coordinates I used for my Portal map for this tutorial. The room 
+      was a 400 unit height, and 600x600 on Width and Breadth. Create the 
+      room, texture it, and throw in a PlayerStart. Now we will add two boxes. 
+      This is the space where the Portals will be. Thanks to Inoxx from the 
+      Unreal team the portal boxes HAVE to be 64x64x64 or bigger. For this 
+      little map we are making make it 200x300x200 (height*width*breadth). Put 
+      it on the outside of the room but make sure the end of it is touching 
+      the room then hit on the subtract from world button. Now let's change 
+      the brush marker to 200x200x300 this will show the same cube but now to 
+      the side. Put it on another wall and extract the world (just like the 
+      figure). One thing to remember both of the portals have to have the 
+      EXACT same geometry as the other. One CANNOT be bigger than the other. 
+      Please make sure both of your portals are done correctly.</font>
+    </p>
+    <p>
+      <font size="2"><img src="../assets/UED/portals_tut1.jpg" width="500" height="375">
+      </font>
+    </p>
+    <h4>
+      <font color="#006600" size="5"><b>The Portals</b></font>
+    </h4>
+    <p>
+      <font size="2">Now we will create a sheet to do this click on the button 
+      all the way on the bottom of the toolbar that looks like a gray diamond. 
+      This will change the marker to a thin sheet, now right click on the 
+      sheet button and go to Sheet Properties make the Orientation Y-Wall to 
+      make it vertical and then the U value should be 300 and the V value 
+      should be 200, hit build. Place this sheet in front of the portal that 
+      it fits and then click on the Add Special Brush button and on the 
+      PRedefined drop down list, pick Zone Portal and your portal is set. Now 
+      go to the Sheet properties and change the values from 300x200 to 200x300 
+      and then the sheet will change direction to the other portal. Put that 
+      on the cover of the portal like the figure and hit Add Brush*. If you 
+      did it correctly it should look like the next figure. *- If you don't 
+      see anything please Rebuild geometry and if you still don't see anything 
+      make sure you added the brush.</font>
+    </p>
+    <p>
+      <font size="2"><img src="../assets/UED/portals_tut2.jpg" width="500" height="375">
+      </font>
+    </p>
+    <h4>
+      <font color="#006600" size="5"><b>The WarpZone</b></font>
+    </h4>
+    <p>
+      <font size="2">Now we will link the portals together. Go to the Classes 
+      menu -&gt; Info -&gt; ZoneInfo -&gt; WarpZoneInfo. Add a WarpZoneInfo inside each 
+      of the boxes make sure they are in correctly at the X and Y values. Now 
+      Go to the WarpZoneInfo properties by right clicking on the WarpZoneInfo 
+      tag (it looks like a cube with a question mark) and goto WarpZoneInfo. 
+      You will see two boxes OthersideUrl and ThisTag. Double click on 
+      Othersideurl and enter the value warp1 and then double click on ThisTag 
+      and put in the value warp2. Now go to the other WarZoneInfo in the other 
+      portal and go to its properties. Do the same thing as you did with the 
+      first one but this time the Othersideurl will be Warp2 and ThisTag will 
+      be Warp1. Close the box and you are two steps away from having portals.</font>
+    </p>
+    <p>
+      <font size="2"><img src="../assets/UED/portals_tut3.jpg" width="500" height="375">
+      </font>
+    </p>
+    <h4>
+      <font color="#006600" size="5"><b>Surface Properties</b></font>
+    </h4>
+    <p>
+      <font size="2">Now click on one of the sheets we put in before, right 
+      click it after its been selected and go to its properties. Check 
+      Portals, 2 Sided, and Invincible. Hit close and do the same to the other 
+      one. Now to test that your portals are correct click on the joystick so 
+      that its not a shady white. When you do that the sheet brushes should 
+      not be visible instead you should see right through them and see the 
+      boxes with the WarpZoneInfo tags in them. If you do see the boxes you 
+      can check that the portals are there by clicking Mode and Zones/Portals, 
+      the whole room should be one color except the portals should be 
+      different. If this is done correctly you are almost there. Just add 
+      lights around the map and then rebuild Geometry, BSP, and Lighting. Play 
+      the map and see if it came out right.</font>
+    </p>
+    <p>
+      <font size="2"><img src="../assets/UED/portals_tut4.jpg" width="500" height="375">
+      </font>
+    </p>
+    <h4>
+      <font color="#006600" size="5"><b>Mini-Portal Faq</b></font>
+    </h4>
+    <p>
+      <b><font color="#006600" size="3">I click on the joystick and I see 
+      black wholes in the map.</font></b><font size="2"><br></font>
+    </p>
+    <ul>
+      <li>
+        <p>
+          <font size="2">Rotate the sheets so that the side that's facing the 
+          room is now facing inside the box and vice versa. It could be both 
+          sheets or just one of them. Experiment this has happened to me 
+          before and I changed the the sheets around a bit. After you do 
+          rotate it make sure you rebuild the geometry and then see if its 
+          still messed.</font>
+        </p>
+      </li>
+      <li>
+        <p>
+          <font size="2">Another problem could be that the boxes aren't the 
+          same geometry I have never had this problem but you should make sure 
+          they are correct.</font>
+        </p>
+      </li>
+      <li>
+        <p>
+          <font size="2">Make sure that the sheets are covering everything on 
+          the portal so you can't see inside. This could be a major problem</font>
+        </p>
+      </li>
+      <li>
+        <p>
+          <font size="2">Make sure that the WarpZoneInfo entities are inside 
+          the portals boxes.</font>
+        </p>
+        <p>
+          <b><font size="3" color="#006600">I play the level and I have 
+          portals but they are messed up I see myself but 3 times bigger.</font></b><font size="2"><br></font>
+        </p>
+      </li>
+      <li>
+        <p>
+          <font size="2">This also happened to me before, I fixed this by 
+          rotating the sheets again. If anyone knows why this even happens 
+          please email me.</font>
+        </p>
+      </li>
+    </ul>
+  </body>
+</html>
