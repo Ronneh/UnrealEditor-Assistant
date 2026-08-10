@@ -1,0 +1,420 @@
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+    <title>Editing Everything</title>
+    
+  </head>
+  <body link="#008000" vlink="#008000" alink="#008000">
+    <h1 align="left">
+      <font size="5" color="#006600">Unreal Editor Vocabulary</font>
+    </h1>
+    <hr color="#006600">
+    
+
+    <p align="left">
+      <font size="2">Provided by: </font><font color="#008000" size="2"><a href="http://www.planetunreal.com/unrealed/"><u>unrealed.exe</u></a>&#160;</font><font size="2"> 
+      &#160;
+</font>    </p>
+    <p align="left">
+      <font size="2">Tomasz &#8216;Millennium&#8217; Jachimczak&#160;</font>
+    </p>
+    <p align="left">
+      <font color="#008000" size="2"><a href="mailto:tomasz@planetunreal.com">tomasz@planetunreal.com</a></font><font size="2"> 
+      </font>
+    </p>
+    <ul align="right">
+      <p align="right">
+        &#160;
+      </p>
+      <p>
+        <font size="2">I will start this tutorial by explaining a little of 
+        how the editor actually works. This editor is unlike many other editor 
+        that are around. It also differs from many 3D Programs that are 
+        available for purchase. You will find that most programs that are 
+        available will start the screen off with a huge &quot;empty&quot; area. Thus if 
+        you would want to build something, you will have to &quot;add&quot; to the 
+        world. What makes the Unreal Editor different is that the world that 
+        you start off with is actually a huge great SOLID block. It does not 
+        have any empty or blank space in it. Thus if you would like to create 
+        a room in the world, then you actually have to &quot;subtract&quot; it from the 
+        world. If this may seem a little &quot;backwards&quot; with the way that most 
+        editors work, then I agree with you, but at the same time, I do also 
+        think that this does make a lot of sense. In most of the other 
+        editors, you would have to create a solid &quot;wall&quot; to show the last part 
+        of a level (or world) before the editor would allow you to actually 
+        see it. Thus you would have to create a large number of addition 
+        brushes simply to have a finite size of the level. With the Epic 
+        Editor (for Unreal) you do not have to create a &quot;final&quot; barrier to 
+        your world, but simply each time you subtract a room (or space) from 
+        the editor, then it automatically adds to the area that you can travel 
+        in the game. Thus, it does make our lives somewhat easier, and also 
+        does make a smaller load on the processor of the PC playing it, as it 
+        does not have to count and use as many brushes, as if you would have 
+        extra brushes to mark the final point of a level. Ok, now that we know 
+        a little of how the editor works, let's get into some of the more 
+        technical words that you will probably hear mentioned a lot in my 
+        tutorials and other people when they talk about the editor. The amount 
+        of detail I will go into will vary on how important I think something 
+        is, and if it is really important that you know what each word means.</font>
+      </p>
+      <ul>
+        <li>
+          <p>
+            <font size="2">Brushes</font>
+          </p>
+          <ul>
+            <li>
+              <p>
+                <font size="2">Solid Brushes<br>A solid brush is a brush that 
+                has been placed into the level, and the builder brush that 
+                created it was solid at the time. When you select the 
+                properties of a brush (from a primitive) you will be able to 
+                select one of two options. You can choose SOLID which means 
+                that the brush you create is a 3D shape that has got no 
+                &quot;insides&quot; to it. It is a basic shape that has got an outline, 
+                but no &quot;inside&quot; to it. If you add a brush like this, you will 
+                add in a new section to the world, and there will be no way to 
+                get into it.</font>
+              </p>
+            </li>
+            <li>
+              <p>
+                <font size="2">Hollow Brushes<br>A hollow brush is a brush 
+                that when created, actually is an outline, and has got 
+                &quot;another smaller shape&quot; inside it. Thus when you add (or 
+                subtract) it into the level, you will have a shape that 
+                appears hollow on the inside. This gets hard to explain here. 
+                Let me use an example here. If you create a cube that is 
+                hollow, you will actually have a brush that is more like a 
+                cardboard box, rather then a child's playing cube, that is 
+                entirely solid in the middle.</font>
+              </p>
+              <ul>
+                <li>
+                  <p>
+                    <font size="2">Builder Brush<br>The builder brush is 
+                    actually the RED BRUSH that you first see as a red cube 
+                    when you open the editor. This will be your most important 
+                    tool when you are creating and editing levels. While it 
+                    might seem a little &quot;primitive&quot; at first, you should find 
+                    that with a few of the things that you can do with it, you 
+                    will be making it into whatever you like in no time al 
+                    all. If you choose to click on any of the primitives (The 
+                    shapes on the toolbar to the left of the screen) then your 
+                    builder brush will change to that shape, and you can then 
+                    add and subtract with that brush.<br>This Tool, is only a 
+                    temporary brush, and does not actually make any difference 
+                    in the level itself. When you are &quot;rebuilding&quot; your level, 
+                    you will find that it does not affect anything at all, as 
+                    it is really only &quot;a fake&quot; until you use one of the other 
+                    tools to make it permanent.</font>
+                  </p>
+                </li>
+                <li>
+                  <p>
+                    <font size="2">Subtracted Brush<br>A brush that has been 
+                    subtracted will show on the editor 2D views as an orangy 
+                    brown color. This has been made from the builder brush at 
+                    one time, and then the subtract tool has been used, to 
+                    permanently place it in the level. If this brush has been 
+                    placed in an area that was solid before, then you will be 
+                    able to travel into that section of the game. If you 
+                    subtract a hollow brush into the game, then you will be 
+                    able walk inside the brush.</font>
+                  </p>
+                </li>
+                <li>
+                  <p>
+                    <font size="2">Added Brush<br>When you &quot;add&quot; a brush into 
+                    the world, you are actually creating another solid. Thus, 
+                    you can only &quot;add&quot; a brush into the world where there is a 
+                    hollow area, otherwise you will be adding something to a 
+                    place where something already exists (This should mean 
+                    completely useless) When you add a brush to the level, you 
+                    will see it appear as a Bark Blue shape in the 2D views.</font>
+                  </p>
+                </li>
+                <li>
+                  <p>
+                    <font size="2">Special Brush<br>A special brush can be 
+                    added to just about anywhere in the world. You will see 
+                    them as Green colored shapes in the 2D views. Special 
+                    Brushes can be used to add water, a transparent &quot;barrier&quot; 
+                    and many other useful things, although you will most 
+                    likely find these out either for yourself, or as you start 
+                    reading some more of the tutorials.</font>
+                  </p>
+                </li>
+                <li>
+                  <p>
+                    <font size="2">Mover Brushes<br>A mover brush is a brush 
+                    in the world that will actually move. This can be created 
+                    by either joining a &quot;trigger&quot; to the mover, or by touching 
+                    the mover, but that is all explained in the related 
+                    tutorials. You wil not see the textures on a mover in the 
+                    3D view, but only see the purple outline and there will be 
+                    no way to change the texture alignment or anything like 
+                    that, so you have to be sure that everything is perfect 
+                    before you create it.</font>
+                  </p>
+                </li>
+              </ul>
+            </li>
+            <li>
+              <p>
+                <font size="2">Movers<br>Movers are brushes that can be set to 
+                move in the level, and are explained in the Brushes section.</font>
+              </p>
+            </li>
+          </ul>
+        </li>
+        <li>
+          <p>
+            <font size="2">Triggers<br>A trigger can be used for a lot of 
+            things. The most common use it to activate a mover with a trigger. 
+            A trigger will appear in the editor as a little question mark next 
+            to a cube. To set a trigger to activate a mover, simply change the 
+            &quot;tag&quot; of both trigger and mover to be the same. Triggers are 
+            explained once again, in tutorials, so I will not go into to much 
+            detail here, although they can be used for just about anything in 
+            your level (world).</font>
+          </p>
+        </li>
+        <li>
+          <p>
+            <font size="2">Intersecting/Disinteresting<br>You can create many 
+            things with the primitives that are supplied in the editor, 
+            although a lot of the time you find that your geometry will 
+            overlap. If you have things that overlap, you can find that your 
+            level may not rebuild properly. You can find that things will 
+            appear to have large &quot;black&quot; area that do not work properly. You 
+            can however use the two tools (intersect/disinterest) to make the 
+            builder brush either cut everything OUTSIDE the solid, or to make 
+            the builder brush appear only within the brush (s). This can be 
+            rather tricky to explain here in text without being able to show a 
+            quick animation, but what it means is that means is that your red 
+            builder brush will be &quot;cut&quot; to only what is either inside or 
+            outside the bushes that are in your level already.,/li&gt;</font>
+          </p>
+        </li>
+        <li>
+          <p>
+            <font size="2">Rebuilding<br>When you have created a brush (or 
+            more hopefully ;) then you will have to compile it into an actual 
+            level. When you press the rebuild function (Either press F8, or 
+            choose rebuild from the options menu) setting it to &quot;rebuild&quot; will 
+            take a few seconds to quite a few minutes (depending on the 
+            complexity of the level) and it will be all ready to play. There 
+            are a few settings within the window that you can choose to either 
+            turn on or off but they are explained under their own heading, 
+            although there is a list of them here. BSP, LIGHTING, GEOMETRY, 
+            OPTIMIZATION. When you rebuild make sure that you do save the 
+            level, as you will sometimes find that there may be errors and 
+            some of the can actually crash your system. Actually it is a good 
+            idea to get into the habit of saving the level quite often and 
+            having a few little &quot;backup&quot; files that are kept there just in 
+            case...</font>
+          </p>
+        </li>
+        <li>
+          <p>
+            <font size="2">BSP<br>This is what will decide where the player 
+            will be able to go, and where they will not be able to go. Any 
+            SOLID brushes will affect the BSP of the level. If you have got an 
+            area that has got a large amount of adding and subtracting in the 
+            same place, then you may experience something that is called BSP 
+            holes, which appear as large black holes in your level, and most 
+            often also result in the player not being able to move through the 
+            area properly. If this is near the end of the level, or near an 
+            area that &quot;ends&quot; with a solid area, then you may also experience 
+            the dreaded HOM. (This is explained below).</font>
+          </p>
+        </li>
+        <li>
+          <p>
+            <font size="2">HOM - Hall of Mirrors<br>This is the bane of all 
+            editors. You will have most likely seen eh HOM before, but simply 
+            put it down to bad level editing. It is - kinda. You will most 
+            often see the HOM where you have got an area or even maybe a 
+            transparent texture that is in the last place in a level. Ok, this 
+            is hard to explain, but for example, if you have got a room in the 
+            level, and there is nothing beyond the room. You would normally 
+            place a texture on the walls that is not see through right? If you 
+            placed a texture that has got invisible areas, when you try to 
+            play the level, the game engine will try to &quot;cover&quot; the holes 
+            there, and it does it by &quot;mirroring&quot; the last thing shown there. 
+            If you ever find a shimmering area where things have stopped 
+            moving and it looks bad, then most likely this is what has 
+            occurred. There is no &quot;one way fix&quot; to get rid of the HOM, but 
+            please check your textures to make sure that they do not contain 
+            any areas of transparency, and that in the 2D views bits of your 
+            map are not disappearing.</font>
+          </p>
+        </li>
+        <li>
+          <p>
+            <font size="2">Lighting<br>Lighting in the level is pretty basic. 
+            It simply means that you will have some sort of illumination that 
+            is in your world so that the players will be able to see where 
+            they are and what they are doing. Lighting may however take the 
+            form of many different things. The easiest way to make a light is 
+            to right click in the level on a texture (in the 3D view) and 
+            choose &quot;add light&quot; from the drop menu. See also Dynamic lighting.</font>
+          </p>
+        </li>
+        <li>
+          <p>
+            <font size="2">Dynamic Lighting<br>Dynamic lighting will greatly 
+            enhance the look of your level, although it may actually slow down 
+            the level, and cause some less powerful machines to drop frames. 
+            Dynamic lighting simply refers to lights that do things. You can 
+            create lights that shimmer, or lights that are spot lights and 
+            rotate, lights that pulsate, or lights that simply &quot;strobe&quot;. There 
+            are a LOT of things that you can use, but as mentioned earlier 
+            here, they will use a large amount of resources (compared to a 
+            normal light that is) to use, and some lower end machines may 
+            suffer a large drop of frame rate.</font>
+          </p>
+        </li>
+        <li>
+          <p>
+            <font size="2">Geometry<br>Geometry refers to the actual brushes 
+            that are in your level. These are the things that your players 
+            will walk over, and also where they will be able to see. To learn 
+            how to create brushes and geometry, refer to the Brushes section 
+            of this document.</font>
+          </p>
+        </li>
+        <li>
+          <p>
+            <font size="2">Optimization<br>There are a lot of questions asked 
+            about the &quot;Optimization&quot; settings that can be changed within the 
+            rebuilder, although you should not actually change any of them in 
+            the BETA Editor that has been released by Epic with Unreal. I have 
+            played with the optimisation settings before, and the only good 
+            that it did, was to kill my level. Trust me on this one, until 
+            there is a fix for the settings - Do NOT change them.</font>
+          </p>
+        </li>
+        <li>
+          <p>
+            <font size="2">Zones<br>Zones can be created in the editor. Zones 
+            will be able to hold specific areas in the map. A zone is really 
+            kinda like a level in itself. For example, if you have an area 
+            with water in it, it is actually a &quot;water zone&quot; or you can create 
+            an area with fog in it, and to make the level play faster, you cn 
+            restrict the area that the fog is visible from, then create a Zone 
+            around it. This will then allow the CPU resources to be used for 
+            other things in the game (like frame rate).</font>
+          </p>
+        </li>
+        <li>
+          <p>
+            <font size="2">Portals<br>Portals can be created in the level, to 
+            allow players to simply &quot;walk&quot; (or fall, or fly or whatever) from 
+            one place in the level, to another place. These have a nice 
+            tutorial written on them, so I will not go into too much detail 
+            here.</font>
+          </p>
+        </li>
+        <li>
+          <p>
+            <font size="2">Textures<br>Textures are simply images that are 
+            used to &quot;paint&quot; the brushes in your level with, so that people can 
+            actually see what is stopping them from going forward, or what is 
+            stopping them from falling through the ground.</font>
+          </p>
+        </li>
+        <li>
+          <p>
+            <font size="2">Wave or .wav<br>This is a format for storing sound. 
+            It is the basic format that most people use to import sounds into 
+            the game and then save them for use in the levels. Wave files can 
+            be explained much more thoroughly in the Booklet of your 
+            Sound-Card, so I will not explain them here in any more detail.</font>
+          </p>
+        </li>
+        <li>
+          <p>
+            <font size="2">Texture Packages or .utx<br>These are simply files 
+            that contain many images for use as textures in the levels. There 
+            are tutorials on this site, that will explain how to create 
+            texture packs and how to import files into the engine for use.</font>
+          </p>
+        </li>
+        <li>
+          <p>
+            <font size="2">Scaling - Textures<br>When you have a texture on 
+            the brush, you can actually change the size of the display. If you 
+            have an image that is too large, or small for the brush, you can 
+            actually change the scale in which it is displayed.</font>
+          </p>
+        </li>
+        <li>
+          <p>
+            <font size="2">Scaling - Brushes<br>Brushes just like Textures can 
+            be scaled to change the size of them, however, if you want to 
+            create a mover from anything, you CANNOT (and I can't stress that 
+            enough) used scales brushes during any part of the construction of 
+            the mover. If you do, everything will appear to be fine, until you 
+            actually try to use the mover or try to walk up to it. At this 
+            point, you will find that the brush that was scaled, will actually 
+            still be &quot;unscaled&quot; even though it may look like everything is 
+            fine.</font>
+          </p>
+        </li>
+        <li>
+          <p>
+            <font size="2">Skybox<br>The skybox is the part of the map that is 
+            displayed whenever there is a texture 9or face of brush) that has 
+            been set to &quot;Fake Backdrop&quot;. This is most useful when you have to 
+            make a &quot;sky&quot; or a background that you want seen from any part of 
+            the map.</font>
+          </p>
+        </li>
+        <li>
+          <p>
+            <font size="2">PlayerStart<br>A Playerstart will be the place in 
+            your level that the player begins when you start the level. These 
+            can be placed just about anywhere you like, although it is a good 
+            idea to make sure that they are not in a place that the player can 
+            get hurt immediately.</font>
+          </p>
+        </li>
+        <li>
+          <p>
+            <font size="2">PainZone<br>A Painzone is an area of the map that 
+            is zones all around, and when the player walks into it, they will 
+            start losing health points. This loss of health will continue 
+            until the player either leaves the pain zone, or dies. Water is 
+            actually a painzone, although there is a delay in it. The delay is 
+            there to allow the player to use the air in his/her lungs (i.e. 
+            hold their breath) and when they start running out, they will 
+            start to lose health.</font>
+          </p>
+        </li>
+        <li>
+          <p>
+            <font size="2">KillZone<br>A Killzone is quite similar to the 
+            above zone, although rather then just making the player lose 
+            health slowly, they are actually killed in the spot. It does not 
+            make a difference if the player is in GOD mode or not. They will 
+            die as soon as they step into a Killzone.</font>
+          </p>
+        </li>
+        <li>
+          <p>
+            <font size="2">Frame Rate<br>Frame rate is really simple. It 
+            refers to the number of frames that the computer can show in a 
+            second. The higher the number, the smoother the display will be. 
+            To try to improve your frame rate on a level, make sure that there 
+            are as few a number of brushes and as few a number of Dynamic 
+            lighting as possible. There are a large number of influences that 
+            will determine the frame rate, but generally speaking, try to use 
+            as little &quot;goodies&quot; as you can, and the level will play better.</font>
+          </p>
+        </li>
+      </ul>
+    </ul>
+  </body>
+</html>
