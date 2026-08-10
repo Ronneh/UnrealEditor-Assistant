@@ -103,9 +103,9 @@ public final class MapDoublerPanel extends JPanel {
 
         JPanel actions = new JPanel(new EdgeAlignedFlowLayout(FlowLayout.LEFT, 8, 0));
         actions.setBackground(AssistantTheme.BACKGROUND);
+        actions.add(button("Paste", this::pasteInput));
         actions.add(button("Analyze", event -> analyze(false)));
         actions.add(button("Double map!", event -> analyze(true)));
-        actions.add(button("Paste", this::pasteInput));
         actions.add(button("Copy result", this::copyResult));
         actions.add(button("Reset", this::reset));
         status.setForeground(AssistantTheme.MUTED);
