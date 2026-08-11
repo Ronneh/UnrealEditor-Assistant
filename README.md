@@ -66,6 +66,10 @@ Open the release page, download **Unreal Editor 2 Assistant v1.zip** from its
 
 - The application is intended for the game Unreal Tournament 1999 and Unreal Editor 2.
 - Weather information requires an internet connection.
+- On first use, Weather asks for a city instead of assuming a default location.
+  City search requires an internet connection and presents matching places by
+  region and country. The last successful forecast is cached locally for
+  offline display.
 
 ## Third-party services and acknowledgements
 
