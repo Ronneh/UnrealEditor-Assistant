@@ -1,0 +1,89 @@
+<html>
+  <head>
+    <title>Basic Special Effects</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <meta content="Microsoft FrontPage 4.0" name="GENERATOR">
+    
+  </head>
+  <body text="#000000" vlink="#008000" link="#008000" bgcolor="#ffffff" alink="#008000">
+    <p align="left">
+      <strong><font face="Arial" size="5" color="#006600"><b>Basic Special 
+      Effects&#160;</b></font></strong>
+    </p>
+    <p align="left">
+      <font face="Arial" size="2">By: Trevelyan</font>
+    </p>
+    <p align="left">
+      &#160;
+    </p>
+    <p align="left">
+      <strong><font face="Arial" size="3" color="#006600"><b>Presumptions:</b></font></strong><b> 
+      </b><font face="Arial" size="2">&#160;</font>
+    </p>
+    <p>
+      <font face="Arial" size="2">You are an intermediate UnrealED user. This 
+      tutorial explains some tricks to adding eye candy to your maps.<br><br></font><font face="Arial" size="3" color="#006600"><strong><b>Windows:</b></strong><b> 
+      </b>&#160;</font>
+    </p>
+    <p>
+      <font face="Arial" size="2">Many mappers neglect the creation of windows 
+      in a map, and implement one with an ugly effect: The transparent nature 
+      of the window, which is deintersected within a hole between 2 rooms, 
+      allows you to view through the hole at an odd angle. See the picture for 
+      an example:</font>
+    </p>
+    <p align="center">
+      <font face="Arial" size="2"><img src="../assets/UED/utcity/newtuts/Basic%20Special%20Effects_files/effects1.jpg">
+      </font>
+    </p>
+    <p>
+      <font face="Arial" size="2">Notice that you can see right through the 
+      wall and to the other side? This is caused by deintersecting the brush 
+      for the window into the hole in the wall that connects these 2 rooms. 
+      Normally this is a good thing, but by directly fusing the 2 brushes you 
+      will eliminate part of the wall and thus see through it when you make 
+      the window transparent. The solution is very simple&#133;<br><br>Before 
+      you add the window brush, or after, select the center vertex (that 
+      little red or blue dot in the center of the selected brush) and click 
+      the resize button. (The little box that is vertically squished) Simply 
+      resize the brush so each end is slightly smaller so the 2 brushes do not 
+      meet. You will need at least 2 Ued units of space on each end. Add the 
+      brush and rebuild your geometry. It should now look something like this:</font>
+    </p>
+    <p align="center">
+      <font face="Arial" size="2"><img src="../assets/UED/utcity/newtuts/Basic%20Special%20Effects_files/effects2.jpg">
+      </font>
+    </p>
+    <p>
+      <strong><font face="Arial" size="3" color="#006600"><b>Mirrors/Reflective 
+      floors:</b></font></strong><b> <font face="Arial" size="2">&#160;</font></b>
+    </p>
+    <p>
+      <font face="Arial" size="2">A very simple but convincing effect when 
+      used properly. When you right click on a surface select &quot;mirror&quot; to make 
+      the surface reflect its environment. Some things to know though:<br><br>Mirrors 
+      slow down computers! No computer out there can render a room that is 
+      coated with mirrors without a huge dip in their frame-rate. They are 
+      usually confusing when placed in certain locations and cause some other 
+      glitches. Do not place mirrors where they may reflect off the skybox, 
+      because this will cause some nasty HOM effects. Don't place fog near 
+      mirrors (or vice-versa) because this will cause some problems. Finally, 
+      use this effect with moderation; there is a reason you don't see this 
+      effect in any of Epic's maps.<br><br>As for the Reflective floors: 
+      Create your room. Select the floor and make that a mirror. Make a sheet 
+      that covers the floor, and is just above it. Do not build this sheet on 
+      the exact location of your original floor. Make the sheet transparent 
+      and the same texture as your floor. You should use a marble texture for 
+      your floor, as this will make a convincing effect. (Eol.utx is good for 
+      this.) Now, because your using a sheet brush, which is very grumpy with 
+      BPS errors, you should always add this effect last in your map and not 
+      change the sheet in any way afterwards. (In other words, don't put 
+      pillars and stuff on top of the sheet, or your asking for trouble!)<br><br>This 
+      is all that I can come up with for right now. Hopefully I will update 
+      this tutorial and get some more effects out for you. Until then, E-Mail 
+      me at <a href="mailto:connors@nnex.net">connors@nnex.net</a> if you have 
+      any questions. Happy mapping to ya!<br></font>
+    </p>
+  </body>
+</html>
+<!-- saved from url=(0057)http://www.planetunreal.com/utcity/tutorials/basicSE.html -->
