@@ -1,3 +1,5 @@
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -16,17 +18,27 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.prefs.Preferences;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
+import javax.swing.DefaultComboBoxModel;
 import javax.swing.Icon;
+import javax.swing.JComboBox;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
@@ -34,10 +46,10 @@ import javax.swing.SwingUtilities;
 /** Compact, key-free Open-Meteo forecast card for the home screen. */
 public final class WeatherPanel extends JPanel {
     private static final Preferences SETTINGS = Preferences.userNodeForPackage(WeatherPanel.class);
+    private static final ObjectMapper JSON = new ObjectMapper();
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build();
-    private final JTextField cityField = new JTextField(SETTINGS.get("weather.city", "Berlin"), 10);
     private final JButton unitButton = new JButton("°C");
     private final JLabel title = new JLabel();
     private final JLabel current = new JLabel("Loading weather...");
@@ -45,11 +57,12 @@ public final class WeatherPanel extends JPanel {
     private final JLabel status = new JLabel("Weather data: Open-Meteo");
     private final ForecastGraph graph = new ForecastGraph();
     private final JPanel days = new JPanel(new GridLayout(1, 7, 4, 0));
-    private final JPanel cityEditor = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
     private WeatherData data;
-    private boolean fahrenheit;
+    private boolean fahrenheit = SETTINGS.getBoolean("weather.fahrenheit", defaultFahrenheit());
+    private Location selectedLocation = storedLocation();
     private int selectedDay;
     private volatile int requestGeneration;
+    private volatile int locationSearchGeneration;
 
     public WeatherPanel() {
         super(new BorderLayout(6, 3));
@@ -63,34 +76,23 @@ public final class WeatherPanel extends JPanel {
         headerTop.setOpaque(false);
         JPanel location = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         location.setOpaque(false);
-        title.setText(weatherTitle(cityField.getText()));
+        title.setText(selectedLocation == null
+                ? t("Set up weather", "Wetter einrichten")
+                : weatherTitle(selectedLocation.display));
         JButton edit = new JButton(new PencilIcon());
         edit.setMargin(new java.awt.Insets(2, 5, 2, 5));
         edit.setPreferredSize(new Dimension(30, 24));
-        edit.setToolTipText("Change city");
-        edit.addActionListener(event -> {
-            cityEditor.setVisible(!cityEditor.isVisible());
-            if (cityEditor.isVisible()) {
-                cityField.requestFocusInWindow();
-                cityField.selectAll();
-            }
-            revalidate();
-        });
-        cityEditor.setOpaque(false);
-        cityEditor.setVisible(false);
-        JButton save = new JButton("Save");
-        save.addActionListener(event -> saveCity());
-        cityField.addActionListener(event -> saveCity());
-        cityEditor.add(cityField);
-        cityEditor.add(save);
+        edit.setToolTipText(t("Change city", "Stadt ändern"));
+        edit.addActionListener(event -> showLocationChooser());
+        unitButton.setText(fahrenheit ? "°F" : "°C");
         unitButton.addActionListener(event -> {
             fahrenheit = !fahrenheit;
+            SETTINGS.putBoolean("weather.fahrenheit", fahrenheit);
             unitButton.setText(fahrenheit ? "°F" : "°C");
             updateView();
         });
         location.add(title);
         location.add(edit);
-        location.add(cityEditor);
         headerTop.add(location, BorderLayout.CENTER);
         headerTop.add(unitButton, BorderLayout.EAST);
         header.add(headerTop, BorderLayout.NORTH);
@@ -118,83 +120,187 @@ public final class WeatherPanel extends JPanel {
         status.setFont(status.getFont().deriveFont(10f));
         bottom.add(status, BorderLayout.SOUTH);
         add(bottom, BorderLayout.SOUTH);
-        refresh();
+        if (selectedLocation != null) refresh();
+        else {
+            current.setText(t("Choose your city", "Stadt auswählen"));
+            status.setText(t("Click the pencil to choose your city.",
+                    "Zum Auswählen der Stadt auf den Stift klicken."));
+        }
     }
 
-    private void saveCity() {
-        String city = cityField.getText().trim();
-        if (city.isEmpty()) return;
-        SETTINGS.put("weather.city", city);
-        title.setText(weatherTitle(city));
-        cityEditor.setVisible(false);
-        revalidate();
-        refresh();
+    private void showLocationChooser() {
+        JTextField input = new JTextField(selectedLocation == null ? "" : selectedLocation.name, 28);
+        DefaultComboBoxModel<Location> model = new DefaultComboBoxModel<>();
+        JComboBox<Location> choices = new JComboBox<>(model);
+        JLabel searchStatus = new JLabel(t("Enter at least two characters.",
+                "Mindestens zwei Zeichen eingeben."));
+        JPanel fields = new JPanel(new BorderLayout(0, 7));
+        fields.setPreferredSize(new Dimension(420, 82));
+        fields.add(input, BorderLayout.NORTH);
+        fields.add(choices, BorderLayout.CENTER);
+        fields.add(searchStatus, BorderLayout.SOUTH);
+        javax.swing.Timer searchTimer = new javax.swing.Timer(350,
+                event -> updateLocationMatches(input.getText(), model, searchStatus));
+        searchTimer.setRepeats(false);
+        input.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            private void changed() { searchTimer.restart(); }
+            @Override public void insertUpdate(javax.swing.event.DocumentEvent event) { changed(); }
+            @Override public void removeUpdate(javax.swing.event.DocumentEvent event) { changed(); }
+            @Override public void changedUpdate(javax.swing.event.DocumentEvent event) { changed(); }
+        });
+        if (!input.getText().isBlank()) searchTimer.start();
+        int result = DarkDialogs.confirm(this, fields,
+                t("Choose a location", "Ort auswählen"),
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        searchTimer.stop();
+        locationSearchGeneration++;
+        if (result == JOptionPane.OK_OPTION && choices.getSelectedItem() instanceof Location location) {
+            applyLocation(location);
+        } else {
+            status.setText(t("Location was not changed.", "Standort wurde nicht geändert."));
+        }
     }
 
-    private static String weatherTitle(String city) {
-        return "<html>Weather in <b>"
-                + city.replace("&", "&amp;").replace("<", "&lt;") + "</b></html>";
-    }
-
-    private void refresh() {
-        String requestedCity = cityField.getText().trim();
-        if (requestedCity.isEmpty()) return;
-        status.setForeground(AssistantTheme.MUTED);
-        status.setText("Loading forecast...");
-        int generation = ++requestGeneration;
-        Thread worker = new Thread(() -> load(requestedCity, generation), "weather-loader");
+    private void updateLocationMatches(String text, DefaultComboBoxModel<Location> model,
+                                       JLabel searchStatus) {
+        String query = text.trim();
+        int generation = ++locationSearchGeneration;
+        model.removeAllElements();
+        if (query.length() < 2) {
+            searchStatus.setText(t("Enter at least two characters.",
+                    "Mindestens zwei Zeichen eingeben."));
+            return;
+        }
+        searchStatus.setText(t("Searching locations...", "Orte werden gesucht..."));
+        Thread worker = new Thread(() -> {
+            try {
+                List<Location> matches = searchLocations(query);
+                SwingUtilities.invokeLater(() -> {
+                    if (generation != locationSearchGeneration) return;
+                    for (Location match : matches) model.addElement(match);
+                    searchStatus.setText(matches.isEmpty()
+                            ? t("No matching location found.", "Kein passender Ort gefunden.")
+                            : t("Select the correct location below.", "Passenden Ort unten auswählen."));
+                });
+            } catch (Exception exception) {
+                SwingUtilities.invokeLater(() -> {
+                    if (generation == locationSearchGeneration)
+                        searchStatus.setText(t("Location search is unavailable.",
+                                "Ortssuche ist derzeit nicht verfügbar."));
+                });
+            }
+        }, "weather-location-search");
         worker.setDaemon(true);
         worker.start();
     }
 
-    private void load(String requestedCity, int generation) {
+    private void applyLocation(Location location) {
+        selectedLocation = location;
+        SETTINGS.put("weather.city", location.name);
+        SETTINGS.put("weather.display", location.display);
+        SETTINGS.putDouble("weather.latitude", location.latitude);
+        SETTINGS.putDouble("weather.longitude", location.longitude);
+        SETTINGS.put("weather.timezone", location.timezone);
+        SETTINGS.putBoolean("weather.configured", true);
+        title.setText(weatherTitle(location.display));
+        revalidate();
+        refresh();
+    }
+
+    private static List<Location> searchLocations(String city) throws Exception {
+        String language = Locale.getDefault().getLanguage().toLowerCase(Locale.ROOT);
+        String query = URLEncoder.encode(city, StandardCharsets.UTF_8);
+        JsonNode results = JSON.readTree(get(HTTP_CLIENT,
+                "https://geocoding-api.open-meteo.com/v1/search?name=" + query
+                        + "&count=8&language=" + language + "&format=json")).path("results");
+        List<Location> locations = new ArrayList<>();
+        if (results.isArray()) for (JsonNode result : results) {
+            String name = result.path("name").asText();
+            locations.add(new Location(name,
+                    locationDisplay(name, result.path("admin1").asText(), result.path("country").asText()),
+                    result.path("latitude").asDouble(), result.path("longitude").asDouble(),
+                    result.path("timezone").asText(ZoneId.systemDefault().getId())));
+        }
+        return locations;
+    }
+
+    private static String locationDisplay(String city, String region, String country) {
+        StringBuilder value = new StringBuilder(city);
+        if (!region.isBlank() && !region.equalsIgnoreCase(city)) value.append(", ").append(region);
+        if (!country.isBlank()) value.append(", ").append(country);
+        return value.toString();
+    }
+
+    private static String weatherTitle(String city) {
+        return "<html>" + t("Weather in ", "Wetter in ") + "<b>"
+                + city.replace("&", "&amp;").replace("<", "&lt;") + "</b></html>";
+    }
+
+    private void refresh() {
+        Location location = selectedLocation;
+        if (location == null) return;
+        status.setForeground(AssistantTheme.MUTED);
+        status.setText(t("Loading forecast...", "Vorhersage wird geladen..."));
+        int generation = ++requestGeneration;
+        Thread worker = new Thread(() -> load(location, generation), "weather-loader");
+        worker.setDaemon(true);
+        worker.start();
+    }
+
+    private void load(Location location, int generation) {
         try {
-            String query = URLEncoder.encode(requestedCity, StandardCharsets.UTF_8);
-            String geo = get(HTTP_CLIENT, "https://geocoding-api.open-meteo.com/v1/search?name="
-                    + query + "&count=1&language=en&format=json");
-            String name = stringValue(geo, "name");
-            double latitude = numberValue(geo, "latitude");
-            double longitude = numberValue(geo, "longitude");
-            String url = "https://api.open-meteo.com/v1/forecast?latitude=" + latitude
-                    + "&longitude=" + longitude
+            String url = "https://api.open-meteo.com/v1/forecast?latitude=" + location.latitude
+                    + "&longitude=" + location.longitude
                     + "&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m"
                     + "&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code"
                     + "&daily=weather_code,temperature_2m_max,temperature_2m_min"
                     + "&timezone=auto&forecast_days=7";
             String forecast = get(HTTP_CLIENT, url);
-            WeatherData loaded = new WeatherData(name,
-                    numberValue(section(forecast, "current"), "temperature_2m"),
-                    (int) numberValue(section(forecast, "current"), "relative_humidity_2m"),
-                    numberValue(section(forecast, "current"), "wind_speed_10m"),
-                    (int) numberValue(section(forecast, "current"), "weather_code"),
-                    numberArray(section(forecast, "hourly"), "temperature_2m"),
-                    numberArray(section(forecast, "hourly"), "relative_humidity_2m"),
-                    numberArray(section(forecast, "hourly"), "wind_speed_10m"),
-                    intArray(section(forecast, "hourly"), "weather_code"),
-                    stringArray(section(forecast, "daily"), "time"),
-                    numberArray(section(forecast, "daily"), "temperature_2m_max"),
-                    numberArray(section(forecast, "daily"), "temperature_2m_min"),
-                    intArray(section(forecast, "daily"), "weather_code"));
-            SwingUtilities.invokeLater(() -> {
-                if (generation != requestGeneration) return;
-                data = loaded;
-                cityField.setText(requestedCity);
-                SETTINGS.put("weather.city", requestedCity);
-                title.setText(weatherTitle(requestedCity));
-                selectedDay = 0;
-                status.setForeground(AssistantTheme.MUTED);
-                status.setText("Weather data: Open-Meteo");
-                updateView();
-            });
+            cacheForecast(location, forecast);
+            showForecast(parseForecast(location.name, forecast), generation, false);
         } catch (Exception exception) {
-            SwingUtilities.invokeLater(() -> {
-                if (generation != requestGeneration) return;
-                status.setForeground(new Color(225, 105, 105));
-                status.setText("Weather is currently unavailable. Check the city or connection.");
-                current.setText("—");
-                condition.setText(requestedCity);
-            });
+            try {
+                showForecast(parseForecast(location.name, cachedForecast(location)), generation, true);
+            } catch (Exception cacheException) {
+                SwingUtilities.invokeLater(() -> {
+                    if (generation != requestGeneration) return;
+                    status.setForeground(new Color(225, 105, 105));
+                    status.setText(t("Weather is currently unavailable. Check the connection.",
+                            "Wetter ist derzeit nicht verfügbar. Bitte Verbindung prüfen."));
+                    current.setText("—");
+                    condition.setText(location.display);
+                });
+            }
         }
+    }
+
+    private void showForecast(WeatherData loaded, int generation, boolean cached) {
+        SwingUtilities.invokeLater(() -> {
+            if (generation != requestGeneration) return;
+            data = loaded;
+            selectedDay = 0;
+            status.setForeground(AssistantTheme.MUTED);
+            status.setText(cached
+                    ? t("Offline: showing the last saved forecast.", "Offline: letzte gespeicherte Vorhersage.")
+                    : t("Weather data: Open-Meteo", "Wetterdaten: Open-Meteo"));
+            updateView();
+        });
+    }
+
+    private static WeatherData parseForecast(String name, String forecast) {
+        return new WeatherData(name,
+                numberValue(section(forecast, "current"), "temperature_2m"),
+                (int) numberValue(section(forecast, "current"), "relative_humidity_2m"),
+                numberValue(section(forecast, "current"), "wind_speed_10m"),
+                (int) numberValue(section(forecast, "current"), "weather_code"),
+                numberArray(section(forecast, "hourly"), "temperature_2m"),
+                numberArray(section(forecast, "hourly"), "relative_humidity_2m"),
+                numberArray(section(forecast, "hourly"), "wind_speed_10m"),
+                intArray(section(forecast, "hourly"), "weather_code"),
+                stringArray(section(forecast, "daily"), "time"),
+                numberArray(section(forecast, "daily"), "temperature_2m_max"),
+                numberArray(section(forecast, "daily"), "temperature_2m_min"),
+                intArray(section(forecast, "daily"), "weather_code"));
     }
 
     private static String get(HttpClient client, String url) throws Exception {
@@ -207,9 +313,71 @@ public final class WeatherPanel extends JPanel {
         return response.body();
     }
 
+    private static void cacheForecast(Location location, String forecast) {
+        try {
+            Path file = cacheFile();
+            Files.createDirectories(file.getParent());
+            com.fasterxml.jackson.databind.node.ObjectNode cache = JSON.createObjectNode();
+            cache.put("latitude", location.latitude);
+            cache.put("longitude", location.longitude);
+            cache.put("savedAt", System.currentTimeMillis());
+            cache.put("forecast", forecast);
+            JSON.writeValue(file.toFile(), cache);
+        } catch (Exception ignored) {
+            // Weather remains usable even when the optional offline cache cannot be written.
+        }
+    }
+
+    private static String cachedForecast(Location location) throws Exception {
+        JsonNode cache = JSON.readTree(cacheFile().toFile());
+        if (Math.abs(cache.path("latitude").asDouble() - location.latitude) > 0.001
+                || Math.abs(cache.path("longitude").asDouble() - location.longitude) > 0.001) {
+            throw new IllegalArgumentException("Cached location does not match");
+        }
+        String forecast = cache.path("forecast").asText();
+        if (forecast.isBlank()) throw new IllegalArgumentException("Empty weather cache");
+        return forecast;
+    }
+
+    private static Path cacheFile() {
+        String localAppData = System.getenv("LOCALAPPDATA");
+        Path directory = localAppData == null || localAppData.isBlank()
+                ? Path.of(System.getProperty("user.home"), ".unreal-editor-2-assistant")
+                : Path.of(localAppData, "UnrealEditor2Assistant");
+        return directory.resolve("weather-cache.json");
+    }
+
+    private static Location storedLocation() {
+        if (!SETTINGS.getBoolean("weather.configured", false)) return null;
+        String name = SETTINGS.get("weather.city", "").trim();
+        if (name.isEmpty()) return null;
+        return new Location(name, SETTINGS.get("weather.display", name),
+                SETTINGS.getDouble("weather.latitude", Double.NaN),
+                SETTINGS.getDouble("weather.longitude", Double.NaN),
+                SETTINGS.get("weather.timezone", ZoneId.systemDefault().getId()));
+    }
+
+    private static boolean defaultFahrenheit() {
+        String country = Locale.getDefault().getCountry();
+        return country.equalsIgnoreCase("US") || country.equalsIgnoreCase("BS")
+                || country.equalsIgnoreCase("BZ") || country.equalsIgnoreCase("KY")
+                || country.equalsIgnoreCase("PW") || country.equalsIgnoreCase("FM")
+                || country.equalsIgnoreCase("MH");
+    }
+
+    private static String t(String english, String german) {
+        return Locale.getDefault().getLanguage().equalsIgnoreCase("de") ? german : english;
+    }
+
     private void updateView() {
         if (data == null) return;
-        boolean night = LocalTime.now().getHour() >= 21 || LocalTime.now().getHour() < 6;
+        int localHour;
+        try {
+            localHour = ZonedDateTime.now(ZoneId.of(selectedLocation.timezone)).getHour();
+        } catch (Exception exception) {
+            localHour = LocalTime.now().getHour();
+        }
+        boolean night = localHour >= 21 || localHour < 6;
         current.setIcon(new WeatherIcon(data.currentCode, night, 30, 25));
         current.setIconTextGap(7);
         current.setText(formatTemp(data.currentTemp));
@@ -217,9 +385,11 @@ public final class WeatherPanel extends JPanel {
         int statusCode = selectedDay == 0 ? data.currentCode : data.hourlyCodes[statusIndex];
         int humidity = selectedDay == 0 ? data.humidity : (int) Math.round(data.hourlyHumidity[statusIndex]);
         long wind = Math.round(selectedDay == 0 ? data.wind : data.hourlyWind[statusIndex]);
+        double displayedWind = fahrenheit ? wind * 0.621371 : wind;
         condition.setText(description(statusCode) + " · "
-                + "Humidity " + humidity
-                + "% · Wind " + wind + " km/h");
+                + t("Humidity ", "Luftfeuchte ") + humidity
+                + "% · " + t("Wind ", "Wind ") + Math.round(displayedWind)
+                + (fahrenheit ? " mph" : " km/h"));
         days.removeAll();
         for (int i = 0; i < Math.min(7, data.dates.length); i++) {
             final int day = i;
@@ -227,7 +397,7 @@ public final class WeatherPanel extends JPanel {
             JPanel button = new JPanel(new BorderLayout(0, 0));
             button.setBackground(AssistantTheme.PANEL_ALT);
             JLabel dayLabel = new JLabel(date.format(
-                    DateTimeFormatter.ofPattern("EE", java.util.Locale.ENGLISH)), JLabel.CENTER);
+                    DateTimeFormatter.ofPattern("EE", Locale.getDefault())), JLabel.CENTER);
             JLabel iconLabel = new JLabel("", JLabel.CENTER);
             int code = dayCode(i);
             iconLabel.setIcon(new WeatherIcon(code, false, 27, 21));
@@ -277,12 +447,12 @@ public final class WeatherPanel extends JPanel {
     }
 
     private static String description(int code) {
-        if (code == 0) return "Clear";
-        if (code <= 2) return "Partly cloudy";
-        if (code <= 48) return "Cloudy";
-        if (code <= 67 || code >= 80 && code <= 82) return "Rain";
-        if (code <= 77 || code >= 85 && code <= 86) return "Snow";
-        return "Thunderstorm";
+        if (code == 0) return t("Clear", "Klar");
+        if (code <= 2) return t("Partly cloudy", "Teilweise bewölkt");
+        if (code <= 48) return t("Cloudy", "Bewölkt");
+        if (code <= 67 || code >= 80 && code <= 82) return t("Rain", "Regen");
+        if (code <= 77 || code >= 85 && code <= 86) return t("Snow", "Schnee");
+        return t("Thunderstorm", "Gewitter");
     }
 
     private static final class PencilIcon implements Icon {
@@ -496,6 +666,10 @@ public final class WeatherPanel extends JPanel {
         Matcher matcher = Pattern.compile("\"" + key + "\"\\s*:\\s*\\[([^]]*)]").matcher(json);
         if (!matcher.find()) throw new IllegalArgumentException("Missing " + key);
         return matcher.group(1);
+    }
+
+    private record Location(String name, String display, double latitude, double longitude, String timezone) {
+        @Override public String toString() { return display; }
     }
 
     private record WeatherData(String city, double currentTemp, int humidity, double wind, int currentCode,
