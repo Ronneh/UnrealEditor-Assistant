@@ -9,8 +9,15 @@ one easy-to-navigate application.
 
 [Download the latest Windows release](https://github.com/Ronneh/UnrealEditor-Assistant/releases/latest)
 
-Open the release page, download **Unreal Editor 2 Assistant v1.zip** from its
-**Assets** section, **extract** the complete archive and run **Unreal Editor 2 Assistant.exe**.
+Open the release page, download **Unreal Editor 2 Assistant v4.zip** from its
+**Assets** section, extract the complete archive, and run
+**Unreal Editor 2 Assistant v4.exe**. Keep the `app`, `runtime`, and
+`help-content` folders next to the executable; the application is not designed
+to run from the EXE alone.
+
+The Windows build is currently unsigned, so Microsoft Defender SmartScreen may
+show a warning after download. Verify that the archive comes from this GitHub
+repository before running it.
 
 ## Development setup
 
@@ -69,7 +76,8 @@ Open the release page, download **Unreal Editor 2 Assistant v1.zip** from its
 - On first use, Weather asks for a city instead of assuming a default location.
   City search requires an internet connection and presents matching places by
   region and country. The last successful forecast is cached locally for
-  offline display.
+  offline display. Weather preferences and the cache are stored below
+  `%LOCALAPPDATA%\UnrealEditor2Assistant` on Windows.
 
 ## Third-party services and acknowledgements
 
@@ -82,7 +90,8 @@ open-source projects, and community resources:
 - **Apache Lucene** powers the local full-text search in Editor Help.
 - **jsoup** is used to import, clean, and present the historical HTML help
   pages.
-- **Jackson** reads and writes the Editor Guide content-pack metadata.
+- **Jackson** reads and writes the Editor Guide metadata and local Weather
+  configuration.
 - **Java Native Access (JNA)** enables Windows-specific desktop integration.
 - **The Unreal and Unreal Tournament editing community** created the reference
   guides and tutorials preserved in Editor Help. Thanks to the original
@@ -98,3 +107,9 @@ endorsed by Epic Games or the third-party projects listed above.
 ## Author
 
 Developed by VRN|Ron.
+
+## License
+
+The application source code is available under the [MIT License](LICENSE).
+Bundled third-party libraries, historical tutorials, game names, trademarks,
+and other community materials remain subject to their respective owners' terms.
