@@ -31,7 +31,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.prefs.Preferences;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.DefaultComboBoxModel;
@@ -45,8 +44,8 @@ import javax.swing.SwingUtilities;
 
 /** Compact, key-free Open-Meteo forecast card for the home screen. */
 public final class WeatherPanel extends JPanel {
-    private static final Preferences SETTINGS = Preferences.userNodeForPackage(WeatherPanel.class);
     private static final ObjectMapper JSON = new ObjectMapper();
+    private static final WeatherSettings SETTINGS = new WeatherSettings();
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build();
@@ -122,7 +121,7 @@ public final class WeatherPanel extends JPanel {
         add(bottom, BorderLayout.SOUTH);
         if (selectedLocation != null) refresh();
         else {
-            current.setText(t("Choose your city", "Stadt auswählen"));
+            current.setText(" ");
             status.setText(t("Click the pencil to choose your city.",
                     "Zum Auswählen der Stadt auf den Stift klicken."));
         }
@@ -340,11 +339,14 @@ public final class WeatherPanel extends JPanel {
     }
 
     private static Path cacheFile() {
+        return appDataDirectory().resolve("weather-cache.json");
+    }
+
+    private static Path appDataDirectory() {
         String localAppData = System.getenv("LOCALAPPDATA");
-        Path directory = localAppData == null || localAppData.isBlank()
+        return localAppData == null || localAppData.isBlank()
                 ? Path.of(System.getProperty("user.home"), ".unreal-editor-2-assistant")
                 : Path.of(localAppData, "UnrealEditor2Assistant");
-        return directory.resolve("weather-cache.json");
     }
 
     private static Location storedLocation() {
@@ -666,6 +668,55 @@ public final class WeatherPanel extends JPanel {
         Matcher matcher = Pattern.compile("\"" + key + "\"\\s*:\\s*\\[([^]]*)]").matcher(json);
         if (!matcher.find()) throw new IllegalArgumentException("Missing " + key);
         return matcher.group(1);
+    }
+
+    private static final class WeatherSettings {
+        private final Path file = appDataDirectory().resolve("weather-settings.json");
+        private final com.fasterxml.jackson.databind.node.ObjectNode values = load();
+
+        private com.fasterxml.jackson.databind.node.ObjectNode load() {
+            try {
+                JsonNode root = JSON.readTree(file.toFile());
+                if (root instanceof com.fasterxml.jackson.databind.node.ObjectNode object) return object;
+            } catch (Exception ignored) { }
+            return JSON.createObjectNode();
+        }
+
+        synchronized String get(String key, String fallback) {
+            return values.has(key) ? values.path(key).asText(fallback) : fallback;
+        }
+
+        synchronized boolean getBoolean(String key, boolean fallback) {
+            return values.has(key) ? values.path(key).asBoolean(fallback) : fallback;
+        }
+
+        synchronized double getDouble(String key, double fallback) {
+            return values.has(key) ? values.path(key).asDouble(fallback) : fallback;
+        }
+
+        synchronized void put(String key, String value) {
+            values.put(key, value);
+            save();
+        }
+
+        synchronized void putBoolean(String key, boolean value) {
+            values.put(key, value);
+            save();
+        }
+
+        synchronized void putDouble(String key, double value) {
+            values.put(key, value);
+            save();
+        }
+
+        private void save() {
+            try {
+                Files.createDirectories(file.getParent());
+                JSON.writerWithDefaultPrettyPrinter().writeValue(file.toFile(), values);
+            } catch (Exception ignored) {
+                // The active session remains usable when settings cannot be persisted.
+            }
+        }
     }
 
     private record Location(String name, String display, double latitude, double longitude, String timezone) {

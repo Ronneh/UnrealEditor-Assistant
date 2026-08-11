@@ -189,13 +189,18 @@ public final class UnrealEditor2Assistant {
         digital.setAlignmentX(Component.CENTER_ALIGNMENT);
         clockPanel.add(Box.createVerticalStrut(4));
         clockPanel.add(digital);
-        Timer timer = new Timer(250, event -> {
+        Timer timer = new Timer(1000, null);
+        timer.setRepeats(false);
+        timer.addActionListener(event -> {
             LocalDateTime now = LocalDateTime.now();
             clock.time = now;
             clock.repaint();
             digital.setText("<html><div style='text-align:center'>" + now.format(TIME)
                     + "</div><div style='font-family:sans-serif;font-size:9px;color:#9ca7b8'>"
                     + now.format(DATE) + "</div></html>");
+            int untilNextSecond = Math.max(10, 1000 - now.getNano() / 1_000_000);
+            timer.setInitialDelay(untilNextSecond);
+            timer.restart();
         });
         timer.setInitialDelay(0);
         timer.start();
@@ -308,9 +313,12 @@ public final class UnrealEditor2Assistant {
                 g.drawLine(cx+(int)(Math.cos(a)*(r-5)), cy+(int)(Math.sin(a)*(r-5)),
                         cx+(int)(Math.cos(a)*(r-10)), cy+(int)(Math.sin(a)*(r-10)));
             }
-            hand(g,cx,cy,r*.48,(time.getHour()%12+time.getMinute()/60.0)*30,4,AssistantTheme.TEXT);
-            hand(g,cx,cy,r*.68,(time.getMinute()+time.getSecond()/60.0)*6,3,AssistantTheme.ACCENT);
-            hand(g,cx,cy,r*.72,time.getSecond()*6,1,new Color(230,86,86));
+            double seconds = time.getSecond();
+            double minutes = time.getMinute() + seconds / 60.0;
+            double hours = time.getHour() % 12 + minutes / 60.0;
+            hand(g,cx,cy,r*.48,hours*30,4,AssistantTheme.TEXT);
+            hand(g,cx,cy,r*.68,minutes*6,3,AssistantTheme.ACCENT);
+            hand(g,cx,cy,r*.72,seconds*6,1,new Color(230,86,86));
             g.dispose();
         }
         private void hand(Graphics2D g,int x,int y,double length,double degrees,int width,Color color) {
