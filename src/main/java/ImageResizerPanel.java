@@ -60,6 +60,7 @@ public final class ImageResizerPanel extends JPanel {
     private BufferedImage loadedSource;
     private BufferedImage original;
     private BufferedImage processed;
+    private boolean cropPreviewDirty;
     private double cropWidthScale = 1.0;
     private double cropHeightScale = 1.0;
     private double cropCenterX = 0.5;
@@ -295,6 +296,7 @@ public final class ImageResizerPanel extends JPanel {
         BufferedImage square = cropSquare(original);
         BufferedImage resized = ImageToolSupport.resize(square, outputSize, outputSize);
         processed = adjust(resized);
+        cropPreviewDirty = false;
         details.setText(original.getWidth() + " × " + original.getHeight() + "  to  "
                 + outputSize + " × " + outputSize + " PNG   |   Crop "
                 + Math.round(cropWidthScale * 100) + "% × "
@@ -424,6 +426,7 @@ public final class ImageResizerPanel extends JPanel {
 
                 @Override public void mouseDragged(MouseEvent event) {
                     if (original == null || dragMode == NONE || displayedImage.width <= 0) return;
+                    cropPreviewDirty = true;
                     if (dragMode != MOVE) {
                         resizeCrop(event.getPoint());
                         repaint();
@@ -464,6 +467,7 @@ public final class ImageResizerPanel extends JPanel {
                             Math.min(maximumFactor, factor));
                     cropWidthScale *= factor;
                     cropHeightScale *= factor;
+                    cropPreviewDirty = true;
                     repaint();
                     scheduleRefresh();
                 }
@@ -542,6 +546,11 @@ public final class ImageResizerPanel extends JPanel {
             Graphics2D g=(Graphics2D)graphics.create();
             g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,RenderingHints.VALUE_INTERPOLATION_BILINEAR);
             g.drawImage(original,displayedImage.x,displayedImage.y,w,h,null);
+            if (processed != null && !cropPreviewDirty) {
+                g.drawImage(processed,
+                        displayedCrop.x, displayedCrop.y,
+                        displayedCrop.width, displayedCrop.height, null);
+            }
             g.setColor(new Color(0, 0, 0, 145));
             g.fillRect(displayedImage.x, displayedImage.y, displayedImage.width,
                     displayedCrop.y - displayedImage.y);
