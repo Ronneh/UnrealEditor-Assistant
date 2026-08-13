@@ -614,7 +614,7 @@ public final class PrefabExplorerPanel extends JPanel {
         }
     }
     private void showError(String message, Exception exception) { DarkDialogs.message(this, message + "\n" + exception.getMessage(), "Prefab Explorer", JOptionPane.ERROR_MESSAGE); }
-    private static Path resolveStorageRoot() { String data = System.getenv("LOCALAPPDATA"); Path base = data == null || data.isBlank() ? Path.of(System.getProperty("user.home"), ".unreal-editor-2-assistant") : Path.of(data, "UnrealEditor2Assistant"); return base.resolve("Prefabs"); }
+    private static Path resolveStorageRoot() { return AppStorage.root().resolve("Prefabs"); }
     static boolean isPrefab(Path path) { String name = path.getFileName().toString().toLowerCase(java.util.Locale.ROOT); return Files.isRegularFile(path) && (name.endsWith(".t3d") || name.endsWith(".txt")); }
     private static Path pathFromClipboardText(String text) { if (text == null || text.contains("\n") || text.contains("\r")) return null; try { Path path = Path.of(text.trim().replaceAll("^\"|\"$", "")); return isPrefab(path) ? path : null; } catch (RuntimeException ignored) { return null; } }
     static String withTrailingLineBreak(String text) {

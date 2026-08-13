@@ -667,11 +667,7 @@ public final class NotesPanel extends JPanel {
     }
 
     private static Path resolveStorageRoot() {
-        String localAppData = System.getenv("LOCALAPPDATA");
-        Path base = localAppData == null || localAppData.isBlank()
-                ? Path.of(System.getProperty("user.home"), ".unreal-editor-2-assistant")
-                : Path.of(localAppData, "UnrealEditor2Assistant");
-        return base.resolve("MapNotes");
+        return AppStorage.root().resolve("MapNotes");
     }
 
     private void initializeStorage() {

@@ -490,11 +490,7 @@ public final class ScriptingPanel extends JPanel {
     }
 
     private static Path resolveScriptLibrary() {
-        String data = System.getenv("LOCALAPPDATA");
-        Path base = data == null || data.isBlank()
-                ? Path.of(System.getProperty("user.home"), ".unreal-editor-2-assistant")
-                : Path.of(data, "UnrealEditor2Assistant");
-        return base.resolve("Scripts");
+        return AppStorage.root().resolve("Scripts");
     }
 
     private void loadEditorGuideKnowledge() {

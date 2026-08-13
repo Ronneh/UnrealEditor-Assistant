@@ -1,20 +1,22 @@
 [CmdletBinding()]
 param(
     [string]$AppVersion = '5.0.0',
-    [string]$ReleaseName = "Unreal Editor 2 Assistant v$($AppVersion.Split('.')[0])",
+    [string]$ReleaseName = "Mapping Assistant v$($AppVersion.Split('.')[0])",
     [string]$OutputDirectory = 'target\windows-release',
+    [string]$ContentPackDirectory = 'help-content-pack',
     [string]$JpackagePath
 )
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $targetDirectory = Join-Path $projectRoot 'target'
-$jarName = 'brush-optimizer-0.1.0.jar'
+$jarName = 'mapping-assistant-0.1.0.jar'
 $jarPath = Join-Path $targetDirectory $jarName
 $iconPng = Join-Path $projectRoot 'app-icon.png'
 $iconIco = Join-Path $targetDirectory 'app-icon.ico'
 $packageInput = Join-Path $targetDirectory 'jpackage-input'
 $resolvedOutput = [System.IO.Path]::GetFullPath((Join-Path $projectRoot $OutputDirectory))
+$contentPack = [System.IO.Path]::GetFullPath((Join-Path $projectRoot $ContentPackDirectory))
 
 function Write-MultiResolutionIcon {
     param([string]$Source, [string]$Destination)
@@ -95,10 +97,13 @@ if (-not $JpackagePath) {
 if (-not $JpackagePath -or -not (Test-Path -LiteralPath $JpackagePath)) {
     throw 'jpackage.exe was not found. Set JAVA_HOME to a JDK or pass -JpackagePath.'
 }
+if (-not (Test-Path -LiteralPath (Join-Path $contentPack 'manifest.json') -PathType Leaf)) {
+    throw "Editor Guide content pack is missing or invalid: $contentPack"
+}
 
 Push-Location $projectRoot
 try {
-    & mvn --batch-mode package
+    & mvn --batch-mode clean package
     if ($LASTEXITCODE -ne 0) { throw "Maven failed with exit code $LASTEXITCODE." }
 
     $forbidden = & jar tf $jarPath |
@@ -116,11 +121,13 @@ try {
     }
 
     & $JpackagePath --type app-image --name $ReleaseName --dest $resolvedOutput `
-        --input $packageInput --main-jar $jarName --main-class UnrealEditor2Assistant `
+        --input $packageInput --main-jar $jarName --main-class MappingAssistant `
         --app-version $AppVersion --icon $iconIco
     if ($LASTEXITCODE -ne 0) { throw "jpackage failed with exit code $LASTEXITCODE." }
 
     $launcher = Join-Path (Join-Path $resolvedOutput $ReleaseName) "$ReleaseName.exe"
+    Copy-Item -LiteralPath $contentPack `
+        -Destination (Join-Path (Split-Path -Parent $launcher) 'help-content') -Recurse
     Add-Type -AssemblyName System.Drawing
     $embeddedIcon = [System.Drawing.Icon]::ExtractAssociatedIcon($launcher)
     try {
@@ -150,7 +157,7 @@ try {
     }
 
     Write-Output "Windows app image created at: $(Split-Path -Parent $launcher)"
-    Write-Output 'Verified: normal JAR excludes the tutorial editor and the launcher contains the canonical icon.'
+    Write-Output 'Verified: normal JAR excludes the tutorial editor, launcher contains the canonical icon, and Editor Guide content is included.'
 } finally {
     Pop-Location
 }
