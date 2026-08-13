@@ -54,7 +54,7 @@ function New-AppIcon([string]$source, [string]$destination) {
 if (-not (Test-Path -LiteralPath $JpackagePath)) { throw "jpackage not found: $JpackagePath" }
 Push-Location $root
 try {
-    & mvn --batch-mode package
+    & mvn --batch-mode clean package
     if ($LASTEXITCODE) { throw "Maven failed: $LASTEXITCODE" }
     $forbidden = & jar tf $jar | Select-String '(^|/)TutorialEditorExtension\.class$|META-INF/services/EditorHelpAuthoringExtension'
     if ($forbidden) { throw "Normal JAR contains tutorial-editor artifacts: $forbidden" }
