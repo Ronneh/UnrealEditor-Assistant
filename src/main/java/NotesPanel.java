@@ -189,14 +189,16 @@ public final class NotesPanel extends JPanel {
         sizes.setToolTipText("Font size");
         sizes.addActionListener(event -> applyFontSize((Integer) sizes.getSelectedItem()));
         toolbar.add(sizes);
-        boldButton = formattingToggleButton("B", "Bold", event -> toggleStyle("bold"));
+        boldButton = formattingToggleButton("B", "Bold",
+                event -> applyStyle("bold", boldButton.isSelected()));
         boldButton.setFont(boldButton.getFont().deriveFont(Font.BOLD));
         toolbar.add(boldButton);
-        italicButton = formattingToggleButton("I", "Italic", event -> toggleStyle("italic"));
+        italicButton = formattingToggleButton("I", "Italic",
+                event -> applyStyle("italic", italicButton.isSelected()));
         italicButton.setFont(italicButton.getFont().deriveFont(Font.ITALIC));
         toolbar.add(italicButton);
         underlineButton = formattingToggleButton("<html><u>U</u></html>", "Underline",
-                event -> toggleStyle("underline"));
+                event -> applyStyle("underline", underlineButton.isSelected()));
         toolbar.add(underlineButton);
         bulletButton = formattingToggleButton("\u2022", "Toggle bullet",
                 event -> toggleBullet());
@@ -318,13 +320,11 @@ public final class NotesPanel extends JPanel {
         applyCharacterAttributes(attributes);
     }
 
-    private void toggleStyle(String style) {
-        if (!(editor.getEditorKit() instanceof StyledEditorKit kit)) return;
-        javax.swing.text.AttributeSet current = kit.getInputAttributes();
+    private void applyStyle(String style, boolean enabled) {
         SimpleAttributeSet attributes = new SimpleAttributeSet();
-        if ("bold".equals(style)) StyleConstants.setBold(attributes, !StyleConstants.isBold(current));
-        else if ("italic".equals(style)) StyleConstants.setItalic(attributes, !StyleConstants.isItalic(current));
-        else StyleConstants.setUnderline(attributes, !StyleConstants.isUnderline(current));
+        if ("bold".equals(style)) StyleConstants.setBold(attributes, enabled);
+        else if ("italic".equals(style)) StyleConstants.setItalic(attributes, enabled);
+        else StyleConstants.setUnderline(attributes, enabled);
         applyCharacterAttributes(attributes);
         SwingUtilities.invokeLater(this::updateFormattingState);
     }
@@ -343,10 +343,19 @@ public final class NotesPanel extends JPanel {
 
     private void updateFormattingState() {
         if (boldButton == null || !(editor.getEditorKit() instanceof StyledEditorKit kit)) return;
-        javax.swing.text.AttributeSet character = kit.getInputAttributes();
-        boldButton.setSelected(StyleConstants.isBold(character));
-        italicButton.setSelected(StyleConstants.isItalic(character));
-        underlineButton.setSelected(StyleConstants.isUnderline(character));
+        if (editor.getSelectionStart() < editor.getSelectionEnd()
+                && editor.getDocument() instanceof javax.swing.text.StyledDocument document) {
+            int start = editor.getSelectionStart();
+            int end = editor.getSelectionEnd();
+            boldButton.setSelected(selectionContainsStyle(document, start, end, "bold"));
+            italicButton.setSelected(selectionContainsStyle(document, start, end, "italic"));
+            underlineButton.setSelected(selectionContainsStyle(document, start, end, "underline"));
+        } else {
+            javax.swing.text.AttributeSet character = kit.getInputAttributes();
+            boldButton.setSelected(StyleConstants.isBold(character));
+            italicButton.setSelected(StyleConstants.isItalic(character));
+            underlineButton.setSelected(StyleConstants.isUnderline(character));
+        }
         bulletButton.setSelected(currentParagraphHasBullet());
 
         int alignment = StyleConstants.ALIGN_LEFT;
@@ -358,6 +367,22 @@ public final class NotesPanel extends JPanel {
         alignLeftButton.setSelected(alignment == StyleConstants.ALIGN_LEFT);
         alignCenterButton.setSelected(alignment == StyleConstants.ALIGN_CENTER);
         alignRightButton.setSelected(alignment == StyleConstants.ALIGN_RIGHT);
+    }
+
+    private static boolean selectionContainsStyle(javax.swing.text.StyledDocument document,
+            int start, int end, String style) {
+        int position = start;
+        while (position < end) {
+            javax.swing.text.Element character = document.getCharacterElement(position);
+            javax.swing.text.AttributeSet attributes = character.getAttributes();
+            boolean present = "bold".equals(style) ? StyleConstants.isBold(attributes)
+                    : "italic".equals(style) ? StyleConstants.isItalic(attributes)
+                    : StyleConstants.isUnderline(attributes);
+            if (present) return true;
+            int next = Math.min(end, character.getEndOffset());
+            position = next > position ? next : position + 1;
+        }
+        return false;
     }
 
     private void toggleBullet() {
