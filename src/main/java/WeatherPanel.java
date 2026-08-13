@@ -343,10 +343,7 @@ public final class WeatherPanel extends JPanel {
     }
 
     private static Path appDataDirectory() {
-        String localAppData = System.getenv("LOCALAPPDATA");
-        return localAppData == null || localAppData.isBlank()
-                ? Path.of(System.getProperty("user.home"), ".unreal-editor-2-assistant")
-                : Path.of(localAppData, "UnrealEditor2Assistant");
+        return AppStorage.root();
     }
 
     private static Location storedLocation() {

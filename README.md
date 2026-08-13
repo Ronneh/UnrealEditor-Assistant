@@ -1,17 +1,17 @@
-# Unreal Editor 2 Assistant
+# Mapping Assistant
 
-Unreal Editor 2 Assistant is a Windows desktop toolkit for creating and
+Mapping Assistant is a Windows desktop toolkit for creating and
 maintaining Unreal Tournament 1999 maps. It brings frequently used mapping,
 image, scripting, documentation, and planning tools together in
 one easy-to-navigate application.
 
 ## Download
 
-[Download the latest Windows release](https://github.com/Ronneh/UnrealEditor-Assistant/releases/latest)
+[Download the latest Windows release](https://github.com/Ronneh/Mapping-Assistant/releases/latest)
 
-Open the release page, download **Unreal Editor 2 Assistant v4.zip** from its
+Open the release page, download **Mapping Assistant v5.zip** from its
 **Assets** section, extract the complete archive, and run
-**Unreal Editor 2 Assistant v4.exe**. Keep the `app`, `runtime`, and
+**Mapping Assistant v5.exe**. Keep the `app`, `runtime`, and
 `help-content` folders next to the executable; the application is not designed
 to run from the EXE alone.
 
@@ -22,16 +22,16 @@ repository before running it.
 ## Development setup
 
 - Install **Git** and a **JDK 17**.
-- Clone the repository, e.g., with `git clone https://github.com/Ronneh/UnrealEditor-Assistant.git`.
-- Open the cloned **UnrealEditor-Assistant** root folder (the folder containing
+- Clone the repository, e.g., with `git clone https://github.com/Ronneh/Mapping-Assistant.git`.
+- Open the cloned **Mapping-Assistant** root folder (the folder containing
   `pom.xml`) in an IDE with Maven support, such as IntelliJ IDEA, Eclipse, or
   Visual Studio Code with the Java extensions.
 - In PowerShell or Command Prompt, change to the project folder location, e.g., 
-  with `cd source\repos\UnrealEditor-Assistant` and run `.\mvnw.cmd test`  to 
+  with `cd source\repos\Mapping-Assistant` and run `.\mvnw.cmd test` to
   compile the project and execute its tests.
 - Run `.\mvnw.cmd package` to create the application JAR in the `target` folder.
 - Start the application from the source tree with
-  `.\mvnw.cmd exec:java "-Dexec.mainClass=UnrealEditor2Assistant"`.
+  `.\mvnw.cmd exec:java "-Dexec.mainClass=MappingAssistant"`.
 
 ## Features
 
@@ -77,11 +77,12 @@ repository before running it.
   City search requires an internet connection and presents matching places by
   region and country. The last successful forecast is cached locally for
   offline display. Weather preferences and the cache are stored below
-  `%LOCALAPPDATA%\UnrealEditor2Assistant` on Windows.
+  `%LOCALAPPDATA%\MappingAssistant` on Windows. Existing data from
+  `%LOCALAPPDATA%\UnrealEditor2Assistant` is migrated automatically.
 
 ## Third-party services and acknowledgements
 
-Unreal Editor 2 Assistant is made possible by several external services,
+Mapping Assistant is made possible by several external services,
 open-source projects, and community resources:
 
 - **Open-Meteo** provides the geocoding and forecast data used by the Weather
@@ -100,8 +101,8 @@ open-source projects, and community resources:
   this companion application is designed to support.
 
 These services, libraries, games, trademarks, tutorials, and their associated
-content remain the property of their respective owners. Unreal Editor 2
-Assistant is an independent community tool and is not affiliated with or
+content remain the property of their respective owners. Mapping Assistant is
+an independent community tool and is not affiliated with or
 endorsed by Epic Games or the third-party projects listed above.
 
 ## Author

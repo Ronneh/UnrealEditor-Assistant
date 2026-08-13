@@ -87,7 +87,7 @@ public final class BrushOptimizer {
     }
 
     /**
-     * Creates the optimizer view so it can be hosted by the UE2 Assistant.
+     * Creates the optimizer view so it can be hosted by Mapping Assistant.
      * The optimizer deliberately owns no window when used through this method.
      */
     public JPanel createContent() {

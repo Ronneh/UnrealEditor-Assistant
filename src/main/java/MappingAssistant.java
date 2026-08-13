@@ -33,8 +33,8 @@ import javax.swing.UIManager;
 import javax.swing.JSeparator;
 import javax.swing.JTextArea;
 
-/** Single-window launcher and workspace for Unreal Editor 2 utilities. */
-public final class UnrealEditor2Assistant {
+/** Single-window launcher and workspace for classic mapping utilities. */
+public final class MappingAssistant {
     private static final String HOME = "home";
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
     private static final DateTimeFormatter DATE = DateTimeFormatter
@@ -50,13 +50,13 @@ public final class UnrealEditor2Assistant {
         System.setProperty("sun.awt.window.darkMode", "true");
         SwingUtilities.invokeLater(() -> {
             AssistantTheme.install();
-            new UnrealEditor2Assistant().show();
+            new MappingAssistant().show();
         });
     }
 
     private void show() {
-        JFrame frame = new JFrame("Unreal Editor 2 Assistant");
-        java.net.URL iconUrl = UnrealEditor2Assistant.class.getResource("/app-icon.png");
+        JFrame frame = new JFrame("Mapping Assistant");
+        java.net.URL iconUrl = MappingAssistant.class.getResource("/app-icon.png");
         if (iconUrl != null) {
             frame.setIconImage(new ImageIcon(iconUrl).getImage());
         }
@@ -154,7 +154,7 @@ public final class UnrealEditor2Assistant {
         top.setOpaque(false);
         JPanel welcome = new JPanel(new BorderLayout());
         welcome.setOpaque(false);
-        JLabel heading = new JLabel("Unreal Editor 2 Assistant");
+        JLabel heading = new JLabel("Mapping Assistant");
         heading.setFont(heading.getFont().deriveFont(Font.BOLD, 28f));
         JLabel subtitle = new JLabel("A focused workspace for mapping tools.");
         subtitle.setForeground(AssistantTheme.MUTED);
