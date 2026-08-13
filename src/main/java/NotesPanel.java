@@ -12,9 +12,13 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.List;
 import javax.swing.AbstractAction;
+import javax.swing.AbstractButton;
 import javax.swing.BorderFactory;
+import javax.swing.ButtonGroup;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -29,6 +33,8 @@ import javax.swing.JSplitPane;
 import javax.swing.JTree;
 import javax.swing.KeyStroke;
 import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
+import javax.swing.JToggleButton;
 import javax.swing.UIManager;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
@@ -47,6 +53,8 @@ import javax.swing.tree.TreePath;
 public final class NotesPanel extends JPanel {
     private static final String EMPTY_HTML = "<html><body><p></p></body></html>";
     private static final int ACTION_GAP = 4;
+    private static final int FORMAT_CONTROL_HEIGHT = 27;
+    private static final int FORMAT_BUTTON_WIDTH = 29;
     private final Path storageRoot;
     private final DefaultMutableTreeNode rootNode = new DefaultMutableTreeNode();
     private final DefaultTreeModel treeModel = new DefaultTreeModel(rootNode);
@@ -55,6 +63,13 @@ public final class NotesPanel extends JPanel {
     private final JLabel editorTitle = new JLabel("Select or create a note");
     private JButton addFolderButton;
     private JButton addNoteButton;
+    private JToggleButton boldButton;
+    private JToggleButton italicButton;
+    private JToggleButton underlineButton;
+    private JToggleButton bulletButton;
+    private JToggleButton alignLeftButton;
+    private JToggleButton alignCenterButton;
+    private JToggleButton alignRightButton;
     private Path selectedNote;
     private boolean loading;
 
@@ -70,6 +85,7 @@ public final class NotesPanel extends JPanel {
         add(createWorkspace(), BorderLayout.CENTER);
         add(actions, BorderLayout.SOUTH);
         installShortcuts();
+        editor.addCaretListener(event -> updateFormattingState());
         reloadTree(null);
     }
 
@@ -128,16 +144,21 @@ public final class NotesPanel extends JPanel {
                 value -> ((Entry) value).path, this::reloadAfterMove,
                 exception -> showError("Could not move the item.", exception), null));
 
-        JPanel editorPanel = new JPanel(new BorderLayout(0, 3));
+        JPanel editorPanel = new JPanel(new BorderLayout());
         editorPanel.setOpaque(false);
         editorTitle.setForeground(AssistantTheme.MUTED);
-        JPanel editorHeader = new JPanel(new BorderLayout(0, 3));
-        editorHeader.setOpaque(false);
+        editorTitle.setBorder(BorderFactory.createEmptyBorder(0, 0, 3, 0));
+        JPanel editorHeader = new JPanel(new BorderLayout(0, 4));
+        editorHeader.setBackground(AssistantTheme.PANEL_ALT);
+        editorHeader.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(AssistantTheme.BORDER),
+                BorderFactory.createEmptyBorder(5, 7, 6, 7)));
         editorHeader.add(editorTitle, BorderLayout.NORTH);
         editorHeader.add(createFormattingToolbar(), BorderLayout.SOUTH);
         editorPanel.add(editorHeader, BorderLayout.NORTH);
         JScrollPane editorScroll = new JScrollPane(editor);
-        editorScroll.setBorder(BorderFactory.createLineBorder(AssistantTheme.BORDER));
+        editorScroll.setBorder(BorderFactory.createMatteBorder(
+                0, 1, 1, 1, AssistantTheme.BORDER));
         editorPanel.add(editorScroll, BorderLayout.CENTER);
         editor.setEnabled(false);
 
@@ -160,18 +181,84 @@ public final class NotesPanel extends JPanel {
         toolbar.setLayout(new EdgeAlignedFlowLayout(FlowLayout.LEFT, 3, 0));
         JComboBox<Integer> sizes = new JComboBox<>(new Integer[] { 10, 12, 14, 16, 18, 24, 32 });
         sizes.setSelectedItem(14);
-        sizes.setPreferredSize(new Dimension(48, 23));
+        Dimension sizeControlSize = new Dimension(52, FORMAT_CONTROL_HEIGHT);
+        sizes.setPreferredSize(sizeControlSize);
+        sizes.setMinimumSize(sizeControlSize);
+        sizes.setMaximumSize(sizeControlSize);
+        sizes.setBorder(BorderFactory.createLineBorder(AssistantTheme.CODE_BACKGROUND));
+        sizes.setToolTipText("Font size");
         sizes.addActionListener(event -> applyFontSize((Integer) sizes.getSelectedItem()));
         toolbar.add(sizes);
-        toolbar.add(button("B", event -> toggleStyle("bold")));
-        toolbar.add(button("I", event -> toggleStyle("italic")));
-        toolbar.add(button("U", event -> toggleStyle("underline")));
-        toolbar.add(button("\u2022", event -> insertBullet()));
-        JButton colorButton = button("", event -> chooseTextColor());
+        boldButton = formattingToggleButton("B", "Bold", event -> toggleStyle("bold"));
+        boldButton.setFont(boldButton.getFont().deriveFont(Font.BOLD));
+        toolbar.add(boldButton);
+        italicButton = formattingToggleButton("I", "Italic", event -> toggleStyle("italic"));
+        italicButton.setFont(italicButton.getFont().deriveFont(Font.ITALIC));
+        toolbar.add(italicButton);
+        underlineButton = formattingToggleButton("<html><u>U</u></html>", "Underline",
+                event -> toggleStyle("underline"));
+        toolbar.add(underlineButton);
+        bulletButton = formattingToggleButton("\u2022", "Toggle bullet",
+                event -> toggleBullet());
+        toolbar.add(bulletButton);
+        JButton colorButton = formattingButton("", "Text color", event -> chooseTextColor());
         colorButton.setIcon(new ColorCircleIcon());
-        colorButton.setToolTipText("Text color");
         toolbar.add(colorButton);
+        alignLeftButton = formattingToggleButton(new TextAlignmentIcon(StyleConstants.ALIGN_LEFT),
+                "Align left", event -> applyParagraphAlignment(StyleConstants.ALIGN_LEFT));
+        alignCenterButton = formattingToggleButton(new TextAlignmentIcon(StyleConstants.ALIGN_CENTER),
+                "Center", event -> applyParagraphAlignment(StyleConstants.ALIGN_CENTER));
+        alignRightButton = formattingToggleButton(new TextAlignmentIcon(StyleConstants.ALIGN_RIGHT),
+                "Align right", event -> applyParagraphAlignment(StyleConstants.ALIGN_RIGHT));
+        ButtonGroup alignments = new ButtonGroup();
+        alignments.add(alignLeftButton);
+        alignments.add(alignCenterButton);
+        alignments.add(alignRightButton);
+        alignLeftButton.setSelected(true);
+        toolbar.add(alignLeftButton);
+        toolbar.add(alignCenterButton);
+        toolbar.add(alignRightButton);
         return toolbar;
+    }
+
+    private JButton formattingButton(String text, String tooltip,
+            java.util.function.Consumer<ActionEvent> action) {
+        JButton button = button(text, action);
+        styleFormattingControl(button, tooltip);
+        return button;
+    }
+
+    private JToggleButton formattingToggleButton(String text, String tooltip,
+            java.util.function.Consumer<ActionEvent> action) {
+        JToggleButton button = new JToggleButton(text);
+        button.setMargin(new java.awt.Insets(2, 6, 2, 6));
+        button.addActionListener(action::accept);
+        styleFormattingControl(button, tooltip);
+        return button;
+    }
+
+    private void styleFormattingControl(AbstractButton button, String tooltip) {
+        Dimension size = new Dimension(FORMAT_BUTTON_WIDTH, FORMAT_CONTROL_HEIGHT);
+        button.setPreferredSize(size);
+        button.setMinimumSize(size);
+        button.setMaximumSize(size);
+        button.setBorder(BorderFactory.createLineBorder(AssistantTheme.CODE_BACKGROUND));
+        button.setFocusPainted(false);
+        button.setToolTipText(tooltip);
+    }
+
+    private JButton formattingButton(Icon icon, String tooltip,
+            java.util.function.Consumer<ActionEvent> action) {
+        JButton button = formattingButton("", tooltip, action);
+        button.setIcon(icon);
+        return button;
+    }
+
+    private JToggleButton formattingToggleButton(Icon icon, String tooltip,
+            java.util.function.Consumer<ActionEvent> action) {
+        JToggleButton button = formattingToggleButton("", tooltip, action);
+        button.setIcon(icon);
+        return button;
     }
 
     private static JEditorPane htmlPane(boolean editable) {
@@ -239,15 +326,87 @@ public final class NotesPanel extends JPanel {
         else if ("italic".equals(style)) StyleConstants.setItalic(attributes, !StyleConstants.isItalic(current));
         else StyleConstants.setUnderline(attributes, !StyleConstants.isUnderline(current));
         applyCharacterAttributes(attributes);
+        SwingUtilities.invokeLater(this::updateFormattingState);
     }
 
-    private void insertBullet() {
-        if (!editor.isEnabled()) return;
+    private void applyParagraphAlignment(int alignment) {
+        if (!editor.isEnabled()
+                || !(editor.getDocument() instanceof javax.swing.text.StyledDocument document)) return;
+        SimpleAttributeSet attributes = new SimpleAttributeSet();
+        StyleConstants.setAlignment(attributes, alignment);
+        int start = editor.getSelectionStart();
+        int length = editor.getSelectionEnd() - start;
+        document.setParagraphAttributes(start, length, attributes, false);
+        editor.requestFocusInWindow();
+        SwingUtilities.invokeLater(this::updateFormattingState);
+    }
+
+    private void updateFormattingState() {
+        if (boldButton == null || !(editor.getEditorKit() instanceof StyledEditorKit kit)) return;
+        javax.swing.text.AttributeSet character = kit.getInputAttributes();
+        boldButton.setSelected(StyleConstants.isBold(character));
+        italicButton.setSelected(StyleConstants.isItalic(character));
+        underlineButton.setSelected(StyleConstants.isUnderline(character));
+        bulletButton.setSelected(currentParagraphHasBullet());
+
+        int alignment = StyleConstants.ALIGN_LEFT;
+        if (editor.getDocument() instanceof javax.swing.text.StyledDocument document) {
+            int position = Math.min(editor.getCaretPosition(), document.getLength());
+            alignment = StyleConstants.getAlignment(
+                    document.getParagraphElement(position).getAttributes());
+        }
+        alignLeftButton.setSelected(alignment == StyleConstants.ALIGN_LEFT);
+        alignCenterButton.setSelected(alignment == StyleConstants.ALIGN_CENTER);
+        alignRightButton.setSelected(alignment == StyleConstants.ALIGN_RIGHT);
+    }
+
+    private void toggleBullet() {
+        if (!editor.isEnabled()
+                || !(editor.getDocument() instanceof javax.swing.text.StyledDocument document)) return;
+        int selectionStart = editor.getSelectionStart();
+        int selectionEnd = editor.getSelectionEnd();
+        int effectiveEnd = selectionEnd > selectionStart ? selectionEnd - 1 : selectionEnd;
+        List<Integer> paragraphStarts = new ArrayList<>();
+        int position = selectionStart;
+        while (position <= effectiveEnd) {
+            javax.swing.text.Element paragraph = document.getParagraphElement(position);
+            int paragraphStart = paragraph.getStartOffset();
+            if (paragraphStarts.isEmpty()
+                    || paragraphStarts.get(paragraphStarts.size() - 1) != paragraphStart)
+                paragraphStarts.add(paragraphStart);
+            int next = paragraph.getEndOffset();
+            if (next <= position || next > effectiveEnd) break;
+            position = next;
+        }
+
+        boolean removeBullets = paragraphStarts.stream()
+                .allMatch(start -> paragraphHasBullet(document, start));
         try {
-            editor.getDocument().insertString(editor.getCaretPosition(), "\u2022 ", null);
+            for (int index = paragraphStarts.size() - 1; index >= 0; index--) {
+                int start = paragraphStarts.get(index);
+                if (removeBullets) document.remove(start, 2);
+                else if (!paragraphHasBullet(document, start))
+                    document.insertString(start, "\u2022 ", null);
+            }
             editor.requestFocusInWindow();
+            SwingUtilities.invokeLater(this::updateFormattingState);
         } catch (javax.swing.text.BadLocationException exception) {
-            throw new IllegalStateException("Could not insert bullet.", exception);
+            throw new IllegalStateException("Could not toggle the bullet list.", exception);
+        }
+    }
+
+    private boolean currentParagraphHasBullet() {
+        if (!(editor.getDocument() instanceof javax.swing.text.StyledDocument document)) return false;
+        int position = Math.min(editor.getCaretPosition(), document.getLength());
+        return paragraphHasBullet(document, document.getParagraphElement(position).getStartOffset());
+    }
+
+    private static boolean paragraphHasBullet(javax.swing.text.Document document, int start) {
+        if (start < 0 || start + 2 > document.getLength()) return false;
+        try {
+            return "\u2022 ".equals(document.getText(start, 2));
+        } catch (javax.swing.text.BadLocationException exception) {
+            return false;
         }
     }
 
@@ -553,6 +712,31 @@ public final class NotesPanel extends JPanel {
             g.fillArc(x + 1, y + 1, 12, 12, 240, 120);
             g.setColor(AssistantTheme.TEXT);
             g.drawOval(x + 1, y + 1, 12, 12);
+            g.dispose();
+        }
+    }
+
+    private static final class TextAlignmentIcon implements Icon {
+        private final int alignment;
+
+        TextAlignmentIcon(int alignment) {
+            this.alignment = alignment;
+        }
+
+        @Override public int getIconWidth() { return 15; }
+        @Override public int getIconHeight() { return 14; }
+
+        @Override public void paintIcon(java.awt.Component component, Graphics graphics, int x, int y) {
+            Graphics2D g = (Graphics2D) graphics.create();
+            g.setColor(component.isEnabled() ? AssistantTheme.TEXT : AssistantTheme.MUTED);
+            int[] widths = { 15, 10, 13, 8 };
+            for (int line = 0; line < widths.length; line++) {
+                int width = widths[line];
+                int offset = alignment == StyleConstants.ALIGN_CENTER ? (15 - width) / 2
+                        : alignment == StyleConstants.ALIGN_RIGHT ? 15 - width : 0;
+                int lineY = y + 1 + line * 4;
+                g.drawLine(x + offset, lineY, x + offset + width - 1, lineY);
+            }
             g.dispose();
         }
     }

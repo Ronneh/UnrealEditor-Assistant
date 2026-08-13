@@ -24,8 +24,8 @@ public final class AssistantTheme {
     public static final Color BORDER = new Color(58, 67, 82);
     public static final Color TEXT = new Color(232, 237, 244);
     public static final Color MUTED = new Color(156, 167, 184);
-    public static final Color ACCENT = new Color(66, 145, 235);
-    public static final Color ACCENT_DARK = new Color(39, 87, 139);
+    public static final Color ACCENT = new Color(91, 132, 166);
+    public static final Color ACCENT_DARK = new Color(45, 75, 104);
     private static boolean dialogTitleBarsInstalled;
 
     private AssistantTheme() { }
@@ -49,6 +49,10 @@ public final class AssistantTheme {
         UIManager.put("Button.foreground", TEXT);
         UIManager.put("Button.select", ACCENT_DARK);
         UIManager.put("Button.focus", new Color(0, 0, 0, 0));
+        UIManager.put("ToggleButton.background", PANEL_ALT);
+        UIManager.put("ToggleButton.foreground", TEXT);
+        UIManager.put("ToggleButton.select", ACCENT_DARK);
+        UIManager.put("ToggleButton.focus", new Color(0, 0, 0, 0));
         UIManager.put("TextArea.background", CODE_BACKGROUND);
         UIManager.put("TextArea.foreground", TEXT);
         UIManager.put("TextArea.caretForeground", TEXT);
