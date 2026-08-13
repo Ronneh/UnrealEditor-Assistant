@@ -11,7 +11,7 @@ one easy-to-navigate application.
 
 Open the release page, download **Mapping Assistant v5.zip** from its
 **Assets** section, extract the complete archive, and run
-**Mapping Assistant v5.exe**. Keep the `app`, `runtime`, and
+**Mapping Assistant vX.exe**. Keep the `app`, `runtime`, and
 `help-content` folders next to the executable; the application is not designed
 to run from the EXE alone.
 
@@ -27,7 +27,7 @@ process-scoped bypass does not alter the system execution policy. The script
 performs the normal Maven build, verifies that tutorial-editor classes are
 absent, generates a multi-resolution Windows icon from `app-icon.png`, passes
 it explicitly to `jpackage`, and checks the packaged launcher for the canonical
-icon. By default, the v5 app image is written below `target\windows-release`.
+icon. By default, the app image is written below `target\windows-release`.
 
 ## Development setup
 
