@@ -19,6 +19,16 @@ The Windows build is currently unsigned, so Microsoft Defender SmartScreen may
 show a warning after download. Verify that the archive comes from this GitHub
 repository before running it.
 
+### Building the Windows app image
+
+From PowerShell, run
+`powershell -ExecutionPolicy Bypass -File scripts\package-windows.ps1`. The
+process-scoped bypass does not alter the system execution policy. The script
+performs the normal Maven build, verifies that tutorial-editor classes are
+absent, generates a multi-resolution Windows icon from `app-icon.png`, passes
+it explicitly to `jpackage`, and checks the packaged launcher for the canonical
+icon. By default, the v5 app image is written below `target\windows-release`.
+
 ## Development setup
 
 - Install **Git** and a **JDK 17**.
