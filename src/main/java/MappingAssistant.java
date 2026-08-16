@@ -84,6 +84,7 @@ public final class MappingAssistant {
         registerApp("double", "\u21c9", "Double", "Map", new MapDoublerPanel());
         registerApp("resizer", "\u2922", "Resize", "Image", new ImageResizerPanel());
         registerApp("screenshots", "\u25a3", "Level", "Screenshot", new ScreenshotMakerPanel());
+        registerApp("gif-maker", "\u25b6", "GIF", "Maker", new GifMakerPanel());
         registerApp("seamless", "\u223f", "Seamless", "Texture", new SeamlessTexturePanel());
         registerApp("scripting", "\u2328", "UScript", "Guide", new ScriptingPanel());
         registerApp("editor-help", "?", "Editor", "Guide", new EditorHelpPanel());
@@ -236,7 +237,7 @@ public final class MappingAssistant {
         title.setFont(title.getFont().deriveFont(Font.BOLD, 17f));
         guide.add(title, BorderLayout.NORTH);
 
-        JPanel features = new JPanel(new GridLayout(5, 2, 8, 8));
+        JPanel features = new JPanel(new GridLayout(6, 2, 8, 8));
         features.setOpaque(false);
         features.add(featureInfo("Notes Explorer",
                 "Organize notes and tasks in folders for each map."));
@@ -250,6 +251,8 @@ public final class MappingAssistant {
                 "Prepare duplicated map content for the opposite team."));
         features.add(featureInfo("Level Screenshot Maker",
                 "Combine 4 map screenshots into one, add map name and export."));
+        features.add(featureInfo("GIF Maker",
+                "Turn any number of level screenshots into a labelled animated GIF."));
         features.add(featureInfo("Image Resizer",
                 "Resize images for import into Unreal Editor."));
         features.add(featureInfo("Seamless Texture",
@@ -259,7 +262,8 @@ public final class MappingAssistant {
         features.add(featureInfo("Editor Guide",
                 "Browse and search the complete Unreal Editor reference guide."));
 
-        features.setPreferredSize(new Dimension(430, 500));
+        // Keep the original card height; additional tools remain reachable by scrolling.
+        features.setPreferredSize(new Dimension(430, 600));
         featureScroll = new JScrollPane(features,
                 JScrollPane.VERTICAL_SCROLLBAR_NEVER, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         featureScroll.setBorder(BorderFactory.createEmptyBorder());
